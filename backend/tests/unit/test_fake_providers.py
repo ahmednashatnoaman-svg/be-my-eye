@@ -1,0 +1,38 @@
+from app.providers.fakes import FakeASRProvider, FakeLLMProvider, FakeOCRProvider, FakeTTSProvider, FakeVisionProvider
+
+
+def test_fake_asr_uses_payload_text_when_available():
+    provider = FakeASRProvider()
+
+    assert provider.transcribe(b"What is in front of me?") == "What is in front of me?"
+
+
+def test_fake_asr_falls_back_to_default_question():
+    provider = FakeASRProvider()
+
+    assert provider.transcribe(b"\xff\xfe") == "What is in front of me?"
+
+
+def test_fake_vision_returns_deterministic_summary():
+    provider = FakeVisionProvider()
+
+    assert provider.analyze(b"image", "What is this?", []) == "a desk with a laptop and a mug"
+
+
+def test_fake_ocr_returns_deterministic_text():
+    provider = FakeOCRProvider()
+
+    assert provider.extract_text(b"image") == "sample printed text"
+
+
+def test_fake_llm_prefers_ocr_context():
+    provider = FakeLLMProvider()
+
+    assert provider.generate_response("Read this", None, "sample printed text", []) == "I can read the text: sample printed text."
+
+
+def test_fake_tts_returns_utf8_bytes():
+    provider = FakeTTSProvider()
+
+    assert provider.synthesize_speech("Hello") == b"Hello"
+
