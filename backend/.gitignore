@@ -1,0 +1,37 @@
+# Byte-compiled / optimized files
+__pycache__/
+*.py[codz]
+*$py.class
+
+# Distribution / packaging
+.Python
+build/
+dist/
+*.egg-info/
+MANIFEST
+
+# Test / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+cover/
+
+# Type checkers / linters
+.mypy_cache/
+.ruff_cache/
+
+# Environments
+.venv
+venv/
+env/
+
+# Env files (also checked here since backend/ is the Vercel project root)
+.env
+.env.local
+
+# Logs
+*.log
+
+# Vercel CLI local state
+.vercel
