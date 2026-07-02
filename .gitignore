@@ -216,3 +216,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Dart & Flutter
+.dart_tool/
+.packages
+pubspec.lock
+*.exe
+*.js
+*.dill

@@ -18,16 +18,19 @@ The first version should prove the end-to-end user experience before any advance
 6. Backend foundation has been scaffolded.
 7. Phase 1 first vertical slice exists in the backend with fake providers and tests.
 8. Real Groq-backed Vision, OCR, Grounding, LLM, ASR, and TTS adapters have been added.
+9. Flutter mobile shell and backend client scaffolding have started.
+10. Mobile conversation state now owns capture and playback hooks.
 
 ### Not Done Yet
 
-1. Flutter mobile client.
-2. Full multi-turn conversation memory beyond the in-memory starter.
-3. Production hardening and demo polish.
+1. Finish Flutter camera and microphone capture wiring.
+2. Verify mobile playback on-device.
+3. Full multi-turn conversation memory beyond the in-memory starter.
+4. Production hardening and demo polish.
 
 ### In Progress
 
-1. Phase 3 planning is next.
+1. Phase 3 is underway and the first capture/playback wiring is in place.
 
 ## Guiding Rules
 
@@ -98,7 +101,7 @@ Dependencies:
 
 ### Phase 3: Mobile Client Integration
 
-Status: `not started`
+Status: `in progress`
 
 Deliverables:
 
@@ -107,6 +110,7 @@ Deliverables:
 3. Record user audio.
 4. Send a single request to `POST /conversation`.
 5. Play the returned speech response.
+6. Keep the UI thin and drive behavior through a small state layer.
 
 Dependencies:
 
@@ -168,7 +172,7 @@ Dependencies:
 | Backend foundation | Done | Scaffold, shared schemas, providers, service, API, and tests are in place. |
 | API and orchestration | Done | `/conversation` works with deterministic fake providers. |
 | Provider adapters | Done | Groq-backed Vision, OCR, Grounding, LLM, ASR, and TTS adapters are in code; real mode is config-driven. |
-| Mobile app | Not started | Flutter client comes after the backend contract stabilizes. |
+| Mobile app | In progress | Flutter shell, backend client, and capture/playback wiring are scaffolded. |
 | Tests | Done | The Phase 1 slice has pytest coverage and passes. |
 
 ## Component Dependencies
