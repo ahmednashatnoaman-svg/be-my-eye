@@ -91,4 +91,17 @@ class ConversationState extends ChangeNotifier {
     }
     await _audioPlaybackService.playBase64Audio(response.audioBase64);
   }
+
+  /// Test-only helper: sets lastResponse directly, bypassing submit(), so
+  /// widget tests can verify UI reacts to a completed response without
+  /// needing a real or fake network round-trip.
+  @visibleForTesting
+  void debugSetResponseForTest(String text) {
+    _lastResponse = ConversationResponse(
+      sessionId: 'test-session',
+      text: text,
+      audioBase64: 'test-audio',
+    );
+    notifyListeners();
+  }
 }
