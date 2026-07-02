@@ -195,3 +195,37 @@ Keep placeholders for:
 **Reason**
 
 Spatial understanding is important for the long-term vision but outside the POC scope.
+
+---
+
+## D-014: Scoped `.gitignore` Files Per Language Root
+
+**Decision**
+
+Use a minimal root `.gitignore` for cross-cutting, OS/editor/secret patterns only. Each
+language root (`backend/`, `mobile/`) owns a `.gitignore` scoped to its own toolchain.
+
+**Reason**
+
+The original root `.gitignore` was a Python template. Its `lib/` pattern silently matched
+Flutter's `mobile/lib/` source root, causing every historical mobile commit to exclude the
+actual app code. A single shared ignore file across a polyglot monorepo is a recurring
+footgun; scoping ignore files to their language root prevents one toolchain's conventions
+from silently deleting another's source tree.
+
+---
+
+## D-016: Deploy the Backend on Vercel via `[tool.vercel]` Entrypoint
+
+**Decision**
+
+Deploy the FastAPI backend on Vercel's Python runtime (Fluid Compute). Point Vercel at the
+existing `app.main:app` instance through `[tool.vercel] entrypoint` in `pyproject.toml`
+rather than creating a wrapper file or moving the app under an `api/` directory.
+
+**Reason**
+
+Vercel's FastAPI framework detection supports a configurable entrypoint, so the existing
+package layout (`app/main.py`, `app/api/`, `app/services/`, `app/providers/`) stays
+untouched. Fluid Compute's 300s ceiling comfortably covers the ASR → Vision → OCR → LLM →
+TTS chain, and Vercel's Git-integration deploys give preview URLs on every PR for free.
