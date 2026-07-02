@@ -12,7 +12,7 @@ void main() {
     http.Request? capturedRequest;
 
     final mockClient = MockClient((request) async {
-      capturedRequest = request as http.Request;
+      capturedRequest = request;
       return http.Response(
         jsonEncode({
           'session_id': 'session-1',
