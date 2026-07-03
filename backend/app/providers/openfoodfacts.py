@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from urllib.parse import quote
+
 import httpx
 
 from app.providers.base import ProductLookupProvider
@@ -13,7 +15,10 @@ class OpenFoodFactsProductLookupProvider(ProductLookupProvider):
         self._client = client or httpx.Client(timeout=timeout)
 
     def lookup_by_barcode(self, barcode: str) -> ProductInfo | None:
-        response = self._client.get(OPEN_FOOD_FACTS_URL.format(barcode=barcode))
+        # ProductLookupRequest already restricts barcode to digits, but this
+        # provider can be called directly (not only via the API layer), so
+        # percent-encode here too rather than relying solely on the caller.
+        response = self._client.get(OPEN_FOOD_FACTS_URL.format(barcode=quote(barcode, safe="")))
         response.raise_for_status()
         data = response.json()
 

@@ -11,7 +11,10 @@ class ProductInfo(BaseModel):
 
 
 class ProductLookupRequest(BaseModel):
-    barcode: str = Field(min_length=1)
+    # GTIN/EAN/UPC barcodes are numeric, 6-14 digits. Restricting the pattern
+    # here (rather than accepting any string) prevents a barcode value from
+    # being used to inject path/query segments into the Open Food Facts URL.
+    barcode: str = Field(min_length=6, max_length=14, pattern=r"^[0-9]+$")
 
 
 class ProductLookupResponse(BaseModel):
