@@ -66,6 +66,11 @@ class GroqVisionProvider(VisionProvider):
             VisionTask.currency: self.prompts.currency_instruction,
             VisionTask.color: self.prompts.color_instruction,
             VisionTask.product: self.prompts.product_instruction,
+            VisionTask.food: self.prompts.food_instruction,
+            VisionTask.people: self.prompts.people_instruction,
+            VisionTask.environment: self.prompts.environment_instruction,
+            VisionTask.clothing: self.prompts.clothing_instruction,
+            VisionTask.label: self.prompts.label_instruction,
         }[task]
 
     def analyze(
