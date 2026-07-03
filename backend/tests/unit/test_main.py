@@ -54,3 +54,10 @@ def test_create_app_wires_currency_detector_only_when_roboflow_key_present(monke
     app = create_app()
 
     assert app is not None
+
+
+def test_create_app_registers_currency_lookup_route():
+    app = create_app()
+
+    paths = {route.path for route in app.routes}
+    assert "/currency-lookup" in paths

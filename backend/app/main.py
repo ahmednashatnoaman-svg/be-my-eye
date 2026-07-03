@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.conversation import create_conversation_router
+from app.api.currency import create_currency_router
 from app.api.product import create_product_router
 from app.core.config import get_settings
 from app.core.prompts import get_prompt_config
@@ -28,6 +29,7 @@ from app.providers.groq import (
     GroqVisionProvider,
 )
 from app.services.conversation_service import ConversationService
+from app.services.currency_lookup_service import CurrencyLookupService
 from app.services.intent_router import IntentRouter
 from app.services.session_store import InMemorySessionStore
 
@@ -75,6 +77,19 @@ def create_app() -> FastAPI:
         OpenFoodFactsProductLookupProvider() if settings.use_real_providers else FakeProductLookupProvider()
     )
 
+    if settings.use_real_providers:
+        currency_lookup_service = CurrencyLookupService(
+            vision=GroqVisionProvider(model=settings.groq_multimodal_model, prompts=prompts),
+            tts=EgyptianTTSProvider(space_id=settings.egyptian_tts_space_id),
+            currency_detector=currency_detector,
+        )
+    else:
+        currency_lookup_service = CurrencyLookupService(
+            vision=FakeVisionProvider(),
+            tts=FakeTTSProvider(),
+            currency_detector=None,
+        )
+
     app = FastAPI(title=settings.app_name, debug=settings.debug)
     app.add_middleware(
         CORSMiddleware,
@@ -84,6 +99,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(create_conversation_router(service))
     app.include_router(create_product_router(product_lookup_provider))
+    app.include_router(create_currency_router(currency_lookup_service))
 
     @app.get("/health")
     def health() -> dict[str, str]:
