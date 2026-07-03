@@ -97,3 +97,59 @@ def test_intent_router_adds_ocr_for_arabic_text_requests():
     decision = router.route("اقرأ هذا المستند من فضلك")
 
     assert decision.use_ocr is True
+
+
+def test_intent_router_selects_food_task():
+    router = IntentRouter()
+
+    decision = router.route("What am I eating?")
+
+    assert decision.vision_task == VisionTask.food
+
+
+def test_intent_router_selects_food_task_in_arabic():
+    router = IntentRouter()
+
+    decision = router.route("ايه ده اللي قدامي في الطبق؟")
+
+    assert decision.vision_task == VisionTask.food
+
+
+def test_intent_router_selects_people_task():
+    router = IntentRouter()
+
+    decision = router.route("Is anyone standing in front of me?")
+
+    assert decision.vision_task == VisionTask.people
+
+
+def test_intent_router_selects_environment_task():
+    router = IntentRouter()
+
+    decision = router.route("Is the light on in this room?")
+
+    assert decision.vision_task == VisionTask.environment
+
+
+def test_intent_router_selects_clothing_task():
+    router = IntentRouter()
+
+    decision = router.route("Do my clothes match?")
+
+    assert decision.vision_task == VisionTask.clothing
+
+
+def test_intent_router_selects_label_task_for_expiry():
+    router = IntentRouter()
+
+    decision = router.route("Has this expired?")
+
+    assert decision.vision_task == VisionTask.label
+
+
+def test_intent_router_priority_food_over_scene():
+    router = IntentRouter()
+
+    decision = router.route("What food is on this plate?")
+
+    assert decision.vision_task == VisionTask.food
