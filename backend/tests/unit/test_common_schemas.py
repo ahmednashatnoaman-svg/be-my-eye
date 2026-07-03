@@ -68,3 +68,25 @@ def test_vision_task_includes_new_accessibility_capabilities():
     assert VisionTask.environment.value == "environment"
     assert VisionTask.clothing.value == "clothing"
     assert VisionTask.label.value == "label"
+
+
+def test_conversation_response_allows_empty_audio_with_fallback_flag():
+    response = ConversationResponse(
+        session_id="session-1",
+        text="A desk with a laptop.",
+        audio_base64="",
+        tts_fallback_required=True,
+    )
+
+    assert response.audio_base64 == ""
+    assert response.tts_fallback_required is True
+
+
+def test_conversation_response_defaults_tts_fallback_required_to_false():
+    response = ConversationResponse(
+        session_id="session-1",
+        text="A desk with a laptop.",
+        audio_base64="YWJj",
+    )
+
+    assert response.tts_fallback_required is False

@@ -29,3 +29,11 @@ def test_product_lookup_provider_concrete_subclass_satisfies_interface():
     result = provider.lookup_by_barcode("123")
     assert result.name == "test product"
 
+
+def test_tts_unavailable_error_is_an_exception():
+    from app.providers.base import TTSUnavailableError
+
+    error = TTSUnavailableError("synthesis failed")
+    assert isinstance(error, Exception)
+    assert str(error) == "synthesis failed"
+

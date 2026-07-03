@@ -7,6 +7,10 @@ from app.schemas.common import ConversationTurn, VisionTask
 from app.schemas.product import ProductInfo
 
 
+class TTSUnavailableError(Exception):
+    """Raised by a TTSProvider when speech synthesis could not be completed."""
+
+
 class ASRProvider(ABC):
     @abstractmethod
     def transcribe(self, audio_bytes: bytes) -> str:
