@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Sequence
 
 from app.schemas.common import ConversationTurn, VisionTask
+from app.schemas.product import ProductInfo
 
 
 class ASRProvider(ABC):
@@ -52,4 +53,10 @@ class LLMProvider(ABC):
 class TTSProvider(ABC):
     @abstractmethod
     def synthesize_speech(self, text: str) -> bytes:
+        raise NotImplementedError
+
+
+class ProductLookupProvider(ABC):
+    @abstractmethod
+    def lookup_by_barcode(self, barcode: str) -> ProductInfo | None:
         raise NotImplementedError
