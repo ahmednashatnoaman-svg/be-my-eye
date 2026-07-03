@@ -127,7 +127,7 @@ git commit -m "feat: add TTSUnavailableError and tts_fallback_required response 
 
 - [ ] **Step 1: Add to `pyproject.toml`**
 
-In `backend/pyproject.toml`, add `"gradio_client>=1.6"` to the `dependencies` list:
+In `backend/pyproject.toml`, add `"gradio_client>=2.5"` to the `dependencies` list:
 
 ```toml
 dependencies = [
@@ -137,7 +137,7 @@ dependencies = [
     "pillow>=10.0",
     "uvicorn>=0.30",
     "httpx>=0.27",
-    "gradio_client>=1.6",
+    "gradio_client>=2.5",
 ]
 ```
 
@@ -146,7 +146,7 @@ dependencies = [
 Add a new line to `backend/requirements.txt`:
 
 ```
-gradio_client==1.6.0
+gradio_client==2.5.0
 ```
 
 so the file reads:
@@ -158,12 +158,12 @@ pydantic==2.12.5
 pillow==12.0.0
 uvicorn==0.47.0
 httpx==0.28.1
-gradio_client==1.6.0
+gradio_client==2.5.0
 ```
 
 - [ ] **Step 3: Install locally**
 
-Run: `cd backend && pip install gradio_client==1.6.0`
+Run: `cd backend && pip install gradio_client==2.5.0`
 Expected: installs successfully (it was already installed and verified working during this plan's design research).
 
 - [ ] **Step 4: Commit**
