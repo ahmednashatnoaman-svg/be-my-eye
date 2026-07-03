@@ -63,3 +63,17 @@ def test_load_dotenv_reads_root_file(monkeypatch):
 
     assert os.getenv("TEST_FROM_ENV") == "hello"
     env_file.unlink(missing_ok=True)
+
+
+def test_settings_includes_egyptian_tts_space_id():
+    settings = get_settings()
+
+    assert settings.egyptian_tts_space_id == "omarelshehy/NAMAA-Egyptian-Voice"
+
+
+def test_settings_reads_egyptian_tts_space_id_override(monkeypatch):
+    monkeypatch.setenv("EGYPTIAN_TTS_SPACE_ID", "some-other/space")
+
+    settings = get_settings()
+
+    assert settings.egyptian_tts_space_id == "some-other/space"

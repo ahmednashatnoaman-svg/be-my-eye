@@ -16,6 +16,7 @@ from app.providers.fakes import (
     FakeTTSProvider,
     FakeVisionProvider,
 )
+from app.providers.egyptian_tts import EgyptianTTSProvider
 from app.providers.openfoodfacts import OpenFoodFactsProductLookupProvider
 from app.providers.groq import (
     GroqASRProvider,
@@ -42,7 +43,7 @@ def create_app() -> FastAPI:
             vision=GroqVisionProvider(model=settings.groq_multimodal_model, prompts=prompts),
             ocr=GroqOCRProvider(model=settings.groq_multimodal_model, prompts=prompts),
             llm=GroqLLMProvider(model=settings.groq_llm_model, prompts=prompts),
-            tts=GroqTTSProvider(model=settings.groq_tts_model, voice=settings.groq_tts_voice),
+            tts=EgyptianTTSProvider(space_id=settings.egyptian_tts_space_id),
             grounding=GroqGroundingProvider(model=settings.groq_multimodal_model, prompts=prompts),
             session_store=InMemorySessionStore(),
             router=IntentRouter(),
