@@ -22,14 +22,41 @@ class RaisingASRProvider:
         raise RuntimeError("could not process file - is it a valid media file?")
 
 
-def make_service(currency_detector=None) -> ConversationService:
+class RaisingVisionProvider:
+    def analyze(self, image_bytes, user_message, history, task=None):
+        raise RuntimeError("cannot identify image file")
+
+
+class RaisingOCRProvider:
+    def extract_text(self, image_bytes):
+        raise RuntimeError("cannot identify image file")
+
+
+class RaisingGroundingProvider:
+    def locate_object(self, image_bytes, query, history):
+        raise RuntimeError("cannot identify image file")
+
+
+class RaisingLLMProvider:
+    def generate_response(self, user_message, vision_summary, ocr_text, history, grounding_result=None):
+        raise RuntimeError("upstream LLM call failed")
+
+
+def make_service(
+    currency_detector=None,
+    asr=None,
+    vision=None,
+    ocr=None,
+    grounding=None,
+    llm=None,
+) -> ConversationService:
     return ConversationService(
-        asr=FakeASRProvider(),
-        vision=FakeVisionProvider(),
-        ocr=FakeOCRProvider(),
-        llm=FakeLLMProvider(),
+        asr=asr or FakeASRProvider(),
+        vision=vision or FakeVisionProvider(),
+        ocr=ocr or FakeOCRProvider(),
+        llm=llm or FakeLLMProvider(),
         tts=FakeTTSProvider(),
-        grounding=FakeGroundingProvider(),
+        grounding=grounding or FakeGroundingProvider(),
         session_store=InMemorySessionStore(),
         router=IntentRouter(),
         currency_detector=currency_detector,
@@ -57,20 +84,59 @@ def test_conversation_service_returns_response_and_debug():
 
 
 def test_conversation_service_raises_conversation_error_when_asr_rejects_audio():
-    service = ConversationService(
-        asr=RaisingASRProvider(),
-        vision=FakeVisionProvider(),
-        ocr=FakeOCRProvider(),
-        llm=FakeLLMProvider(),
-        tts=FakeTTSProvider(),
-        grounding=FakeGroundingProvider(),
-        session_store=InMemorySessionStore(),
-        router=IntentRouter(),
-    )
+    service = make_service(asr=RaisingASRProvider())
     request = ConversationRequest(
         session_id="session-1",
         image_base64=base64.b64encode(b"image-bytes").decode("ascii"),
         audio_base64=base64.b64encode(b"not a real audio file").decode("ascii"),
+    )
+
+    with pytest.raises(ConversationError):
+        service.handle(request)
+
+
+def test_conversation_service_raises_conversation_error_when_vision_rejects_image():
+    service = make_service(vision=RaisingVisionProvider())
+    request = ConversationRequest(
+        session_id="session-1",
+        image_base64=base64.b64encode(b"not a real image file").decode("ascii"),
+        audio_base64=base64.b64encode(b"What is in front of me?").decode("ascii"),
+    )
+
+    with pytest.raises(ConversationError):
+        service.handle(request)
+
+
+def test_conversation_service_raises_conversation_error_when_ocr_rejects_image():
+    service = make_service(ocr=RaisingOCRProvider())
+    request = ConversationRequest(
+        session_id="session-1",
+        image_base64=base64.b64encode(b"not a real image file").decode("ascii"),
+        audio_base64=base64.b64encode(b"Read this page").decode("ascii"),
+    )
+
+    with pytest.raises(ConversationError):
+        service.handle(request)
+
+
+def test_conversation_service_raises_conversation_error_when_grounding_fails():
+    service = make_service(grounding=RaisingGroundingProvider())
+    request = ConversationRequest(
+        session_id="session-1",
+        image_base64=base64.b64encode(b"not a real image file").decode("ascii"),
+        audio_base64=base64.b64encode(b"Where are my keys?").decode("ascii"),
+    )
+
+    with pytest.raises(ConversationError):
+        service.handle(request)
+
+
+def test_conversation_service_raises_conversation_error_when_llm_fails():
+    service = make_service(llm=RaisingLLMProvider())
+    request = ConversationRequest(
+        session_id="session-1",
+        image_base64=base64.b64encode(b"image-bytes").decode("ascii"),
+        audio_base64=base64.b64encode(b"What is in front of me?").decode("ascii"),
     )
 
     with pytest.raises(ConversationError):
