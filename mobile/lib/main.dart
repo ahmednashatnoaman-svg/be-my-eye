@@ -13,6 +13,10 @@ const String _backendUrl = String.fromEnvironment(
   defaultValue: 'https://backend-mu-azure-ghm6imsjg1.vercel.app',
 );
 
+// Empty by default so local/dev builds without --dart-define=BACKEND_API_KEY=...
+// still work against a backend that hasn't set BE_MY_EYE_API_KEY either.
+const String _backendApiKey = String.fromEnvironment('BACKEND_API_KEY');
+
 void main() {
   runApp(const MyApp());
 }
@@ -24,7 +28,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<ConversationState>(
       create: (_) => ConversationState(
-        backendClient: BackendClient(baseUrl: _backendUrl),
+        backendClient: BackendClient(baseUrl: _backendUrl, apiKey: _backendApiKey),
         mediaCaptureService: CameraMediaCaptureService(),
         audioPlaybackService: JustAudioPlaybackService(),
         osTtsFallbackService: FlutterOsTtsFallbackService(),

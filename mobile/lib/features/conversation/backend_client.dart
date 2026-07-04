@@ -14,7 +14,7 @@ class BackendException implements Exception {
 }
 
 class BackendClient {
-  BackendClient({required this.baseUrl, http.Client? httpClient})
+  BackendClient({required this.baseUrl, this.apiKey = '', http.Client? httpClient})
       : _httpClient = httpClient ?? http.Client();
 
   // Generous but bounded: the Egyptian TTS pipeline is genuinely slow
@@ -25,14 +25,20 @@ class BackendClient {
   static const Duration _requestTimeout = Duration(seconds: 150);
 
   final String baseUrl;
+  final String apiKey;
   final http.Client _httpClient;
+
+  Map<String, String> get _headers => {
+        'Content-Type': 'application/json',
+        if (apiKey.isNotEmpty) 'X-API-Key': apiKey,
+      };
 
   Future<ConversationResponse> sendConversation(ConversationRequest request) async {
     final uri = Uri.parse('$baseUrl/conversation');
     final response = await _httpClient
         .post(
           uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: _headers,
           body: jsonEncode(request.toJson()),
         )
         .timeout(_requestTimeout);
@@ -53,7 +59,7 @@ class BackendClient {
     final response = await _httpClient
         .post(
           uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: _headers,
           body: jsonEncode({'image_base64': imageBase64}),
         )
         .timeout(_requestTimeout);
@@ -74,7 +80,7 @@ class BackendClient {
     final response = await _httpClient
         .post(
           uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: _headers,
           body: jsonEncode({'barcode': barcode}),
         )
         .timeout(_requestTimeout);

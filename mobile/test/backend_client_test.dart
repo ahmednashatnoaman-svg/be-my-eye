@@ -51,6 +51,40 @@ void main() {
     expect(response.audioBase64, 'abcd');
   });
 
+  test('sendConversation omits X-API-Key header when apiKey is empty', () async {
+    http.Request? capturedRequest;
+    final mockClient = MockClient((request) async {
+      capturedRequest = request;
+      return http.Response(
+        jsonEncode({'session_id': 's', 'text': 'hi', 'audio_base64': ''}),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+    final client = BackendClient(baseUrl: 'https://example.com', httpClient: mockClient);
+
+    await client.sendConversation(ConversationRequest(sessionId: 's', imageBase64: 'i', audioBase64: 'a'));
+
+    expect(capturedRequest?.headers.containsKey('X-API-Key'), isFalse);
+  });
+
+  test('sendConversation includes X-API-Key header when apiKey is set', () async {
+    http.Request? capturedRequest;
+    final mockClient = MockClient((request) async {
+      capturedRequest = request;
+      return http.Response(
+        jsonEncode({'session_id': 's', 'text': 'hi', 'audio_base64': ''}),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+    final client = BackendClient(baseUrl: 'https://example.com', apiKey: 'secret-key', httpClient: mockClient);
+
+    await client.sendConversation(ConversationRequest(sessionId: 's', imageBase64: 'i', audioBase64: 'a'));
+
+    expect(capturedRequest?.headers['X-API-Key'], 'secret-key');
+  });
+
   test('sendConversation throws BackendException on a non-200 response', () async {
     final mockClient = MockClient((request) async => http.Response('server error', 500));
     final client = BackendClient(baseUrl: 'https://example.com', httpClient: mockClient);
