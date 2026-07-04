@@ -96,6 +96,13 @@ class FakeAudioPlaybackService implements AudioPlaybackService {
   }
 }
 
+class ThrowingAudioPlaybackService implements AudioPlaybackService {
+  @override
+  Future<void> playBase64Audio(String audioBase64) async {
+    throw StateError('empty or corrupt audio bytes');
+  }
+}
+
 class FakeOsTtsFallbackService implements OsTtsFallbackService {
   String? spokenText;
 
@@ -401,6 +408,21 @@ void main() {
 
     expect(osTtsFallbackService.spokenText, 'the answer');
     expect(audioPlaybackService.playedAudioBase64, isNull);
+  });
+
+  test('falls back to the local voice when audio playback fails despite ttsFallbackRequired being false', () async {
+    final osTtsFallbackService = FakeOsTtsFallbackService();
+    final state = ConversationState(
+      backendClient: FakeBackendClient(),
+      mediaCaptureService: FakeMediaCaptureService(),
+      audioPlaybackService: ThrowingAudioPlaybackService(),
+      osTtsFallbackService: osTtsFallbackService,
+    );
+
+    state.debugSetResponseForTest('the answer', ttsFallbackRequired: false);
+    await state.playLastResponse();
+
+    expect(osTtsFallbackService.spokenText, 'the answer');
   });
 
   test('ConversationState captures a photo and looks up currency', () async {

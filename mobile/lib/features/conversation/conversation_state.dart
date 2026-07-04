@@ -244,8 +244,16 @@ class ConversationState extends ChangeNotifier {
     }
     if (response.ttsFallbackRequired) {
       await _osTtsFallbackService.speak(response.text);
-    } else {
+      return;
+    }
+    try {
       await _audioPlaybackService.playBase64Audio(response.audioBase64);
+    } catch (_) {
+      // The backend said audio was ready, but playback failed anyway (e.g.
+      // empty/corrupt audio bytes slipped through). Never let the user end
+      // up with visible text and total silence -- fall back to speaking it
+      // locally instead of just swallowing the error.
+      await _osTtsFallbackService.speak(response.text);
     }
   }
 
