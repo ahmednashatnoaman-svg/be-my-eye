@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import TypeVar
 
@@ -58,27 +59,41 @@ class ConversationService:
         used_currency_detector = (
             currency_result is not None and currency_result.confidence >= self.CURRENCY_CONFIDENCE_THRESHOLD
         )
+        # Vision/OCR/grounding are independent network calls to the same
+        # provider (none needs another's output), so they're dispatched
+        # concurrently rather than one-after-another -- when a request needs
+        # 2+ of these, this cuts wall-clock latency roughly to the slowest
+        # single call instead of their sum.
+        tasks: dict[str, tuple[str, Callable[[], str]]] = {}
+        if not used_currency_detector:
+            tasks["vision"] = (
+                "analyze the provided image",
+                lambda: self.vision.analyze(image_bytes, transcript, history, task=decision.vision_task),
+            )
+        if decision.use_ocr:
+            tasks["ocr"] = ("read text from the provided image", lambda: self.ocr.extract_text(image_bytes))
+        if decision.grounding_query:
+            tasks["grounding"] = (
+                "locate the requested object",
+                lambda: self.grounding.locate_object(image_bytes, decision.grounding_query, history),
+            )
+
+        results: dict[str, str] = {}
+        if tasks:
+            with ThreadPoolExecutor(max_workers=len(tasks)) as executor:
+                futures = {name: executor.submit(self._guarded, description, call) for name, (description, call) in tasks.items()}
+                results = {name: future.result() for name, future in futures.items()}
+
         if used_currency_detector:
             vision_summary = (
                 f"Detected currency: {currency_result.denomination} "
                 f"(confidence {currency_result.confidence:.0%})"
             )
         else:
-            vision_summary = self._guarded(
-                "analyze the provided image",
-                lambda: self.vision.analyze(image_bytes, transcript, history, task=decision.vision_task),
-            )
+            vision_summary = results["vision"]
 
-        ocr_text = None
-        if decision.use_ocr:
-            ocr_text = self._guarded("read text from the provided image", lambda: self.ocr.extract_text(image_bytes))
-
-        grounding_result = None
-        if decision.grounding_query:
-            grounding_result = self._guarded(
-                "locate the requested object",
-                lambda: self.grounding.locate_object(image_bytes, decision.grounding_query, history),
-            )
+        ocr_text = results.get("ocr")
+        grounding_result = results.get("grounding")
 
         selected_providers = ["currency_detector"] if used_currency_detector else ["vision"]
         if decision.use_ocr:
