@@ -26,7 +26,8 @@ The first version should prove the end-to-end user experience before any advance
 14. Egyptian-dialect TTS via a free, public Gradio Space (`EgyptianTTSProvider`), live-verified end-to-end, replacing the previous Saudi-dialect Groq voice as the real-mode default. Falls back gracefully (`tts_fallback_required`) to the mobile app's on-device Arabic voice on synthesis failure.
 15. Specialist Egyptian-currency detection (`CurrencyDetectionProvider` / `RoboflowCurrencyProvider`) tried first for currency questions and Money Mode, falling back to the general VLM when unconfident or unconfigured. Originally shipped without live verification (no Roboflow account available); a real `ROBOFLOW_API_KEY` was added afterward and confirmed working end-to-end against the live hosted API — see `docs/superpowers/plans/2026-07-03-backend-roboflow-currency-detection.md`.
 16. Mobile: dedicated Money Mode and barcode-scanning buttons alongside the hold-to-ask flow, plus on-device Arabic TTS fallback wiring (`flutter_tts`, `mobile_scanner`).
-17. Multi-turn conversation memory: `ConversationResponse.transcript` is now always returned, and the mobile app accumulates and sends `history` with each request, so the backend's existing (previously unused) client-supplied-history path is now actually exercised in production. 114 backend / 32 mobile tests passing, `flutter analyze` clean.
+17. Multi-turn conversation memory: `ConversationResponse.transcript` is now always returned, and the mobile app accumulates and sends `history` with each request, so the backend's existing (previously unused) client-supplied-history path is now actually exercised in production.
+18. Hardened `ConversationService.handle()` against malformed client input: every provider call (ASR, Vision, OCR, grounding, LLM) is now wrapped so upstream failures (e.g. Groq rejecting invalid audio, PIL rejecting invalid images) return a clean `400 ConversationError` instead of leaking a raw 500 with a Python traceback. Found and fixed via real production smoke-testing with deliberately malformed payloads; re-verified against production with a genuinely valid image+audio payload afterward (200 OK, transcript present, audio synthesized). 119 backend / 32 mobile tests passing, `flutter analyze` clean, both CI workflows green.
 
 ### Not Done Yet
 
@@ -183,7 +184,7 @@ Dependencies:
 | API and orchestration | Done | `/conversation` works with deterministic fake providers. |
 | Provider adapters | Done | Groq-backed Vision, OCR, Grounding, LLM, ASR adapters, Egyptian TTS (Gradio Space, live-verified), Roboflow currency detection (live-verified with a real API key), and Open Food Facts product lookup are in code and wired into ConversationService; real mode is config-driven. Vision-task routing (scene/currency/color/product/food/people/environment/clothing/label) and grounding support both English and Arabic keywords, verified live. |
 | Mobile app | Done | Full Flutter app implemented (models, backend client, media capture/compression, audio playback + on-device TTS fallback, conversation state with multi-turn history, accessible hold-to-ask screen, Money Mode, barcode scanning), Stitch-designed UI applied, 32/32 tests passing, verified running live on iOS Simulator and building successfully for real iOS device architecture. |
-| Tests | Done | Backend: 114 passed, 1 skipped. Mobile: 32/32 passed, `flutter analyze` clean. Both suites green in CI on `main`. |
+| Tests | Done | Backend: 119 passed, 1 skipped. Mobile: 32/32 passed, `flutter analyze` clean. Both suites green in CI on `main`. |
 
 ## Component Dependencies
 
