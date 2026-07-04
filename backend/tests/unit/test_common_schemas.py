@@ -25,11 +25,13 @@ def test_conversation_response_model():
     response = ConversationResponse(
         session_id="session-1",
         text="A desk with a laptop.",
+        transcript="What is this?",
         audio_base64="YWJj",
     )
 
     assert response.session_id == "session-1"
     assert response.text == "A desk with a laptop."
+    assert response.transcript == "What is this?"
     assert response.audio_base64 == "YWJj"
 
 
@@ -74,6 +76,7 @@ def test_conversation_response_allows_empty_audio_with_fallback_flag():
     response = ConversationResponse(
         session_id="session-1",
         text="A desk with a laptop.",
+        transcript="What is this?",
         audio_base64="",
         tts_fallback_required=True,
     )
@@ -86,6 +89,7 @@ def test_conversation_response_defaults_tts_fallback_required_to_false():
     response = ConversationResponse(
         session_id="session-1",
         text="A desk with a laptop.",
+        transcript="What is this?",
         audio_base64="YWJj",
     )
 

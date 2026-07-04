@@ -36,7 +36,25 @@ def test_conversation_endpoint_returns_response():
     body = response.json()
     assert body["session_id"] == "session-1"
     assert body["text"] == "You are looking at a desk with a laptop and a mug."
+    assert body["transcript"]
     assert body["debug"]["selected_providers"] == ["vision"]
+
+
+def test_conversation_endpoint_uses_client_supplied_history_for_next_turn():
+    import os
+
+    os.environ["USE_REAL_PROVIDERS"] = "false"
+    payload = {
+        "session_id": "session-multi-turn",
+        "image_base64": base64.b64encode(b"image-bytes").decode("ascii"),
+        "audio_base64": base64.b64encode(b"What is in front of me?").decode("ascii"),
+        "history": [{"user_text": "What color is it?", "assistant_text": "It is red."}],
+    }
+
+    response = make_client().post("/conversation", json=payload)
+
+    assert response.status_code == 200
+    assert response.json()["transcript"]
 
 
 def test_conversation_endpoint_rejects_invalid_base64():

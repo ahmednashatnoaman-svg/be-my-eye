@@ -104,6 +104,7 @@ class ConversationService:
         return ConversationResponse(
             session_id=request.session_id,
             text=response_text,
+            transcript=transcript,
             audio_base64=base64.b64encode(speech_bytes).decode("ascii"),
             tts_fallback_required=tts_fallback_required,
             debug=debug,
