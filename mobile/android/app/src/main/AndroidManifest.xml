@@ -44,5 +44,12 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Android 11+ (API 30+) hides installed packages from queryIntentActivities
+             by default. Without this, flutter_tts cannot discover the device's
+             text-to-speech engine at all, so the on-device Arabic fallback voice
+             would silently never speak. -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE"/>
+        </intent>
     </queries>
 </manifest>

@@ -1,3 +1,4 @@
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -17,7 +18,14 @@ const String _backendUrl = String.fromEnvironment(
 // still work against a backend that hasn't set BE_MY_EYE_API_KEY either.
 const String _backendApiKey = String.fromEnvironment('BACKEND_API_KEY');
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Without this, iOS silently drops all playback (both the cloud TTS
+  // response and the on-device fallback voice) whenever the phone's mute
+  // switch is on -- audio.speech() is the category for spoken-word/
+  // accessibility apps and explicitly ignores it, since voice output is
+  // this app's primary interface for a blind user, not a secondary alert.
+  await AudioSession.instance.then((session) => session.configure(const AudioSessionConfiguration.speech()));
   runApp(const MyApp());
 }
 
