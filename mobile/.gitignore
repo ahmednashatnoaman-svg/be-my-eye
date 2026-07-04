@@ -1,3 +1,6 @@
+# Local build secrets -- contains a real BACKEND_API_KEY, never commit.
+dart_defines.json
+
 # Miscellaneous
 *.class
 *.log
