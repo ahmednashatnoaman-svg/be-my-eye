@@ -71,3 +71,34 @@ def test_conversation_endpoint_rejects_invalid_base64():
 
     assert response.status_code == 400
     assert response.json()["detail"]["code"] == "invalid_request"
+
+
+def test_conversation_endpoint_rejects_missing_api_key_when_configured(monkeypatch):
+    monkeypatch.setenv("USE_REAL_PROVIDERS", "false")
+    monkeypatch.setenv("BE_MY_EYE_API_KEY", "test-secret-key")
+    payload = {
+        "session_id": "session-1",
+        "image_base64": base64.b64encode(b"image-bytes").decode("ascii"),
+        "audio_base64": base64.b64encode(b"What is in front of me?").decode("ascii"),
+    }
+
+    response = make_client().post("/conversation", json=payload)
+
+    assert response.status_code == 401
+    assert response.json()["detail"]["code"] == "unauthorized"
+
+
+def test_conversation_endpoint_allows_correct_api_key_when_configured(monkeypatch):
+    monkeypatch.setenv("USE_REAL_PROVIDERS", "false")
+    monkeypatch.setenv("BE_MY_EYE_API_KEY", "test-secret-key")
+    payload = {
+        "session_id": "session-1",
+        "image_base64": base64.b64encode(b"image-bytes").decode("ascii"),
+        "audio_base64": base64.b64encode(b"What is in front of me?").decode("ascii"),
+    }
+
+    response = make_client().post(
+        "/conversation", json=payload, headers={"X-API-Key": "test-secret-key"}
+    )
+
+    assert response.status_code == 200

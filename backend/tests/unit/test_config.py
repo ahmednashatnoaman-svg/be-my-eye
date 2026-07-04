@@ -101,3 +101,19 @@ def test_settings_reads_roboflow_currency_overrides(monkeypatch):
     assert settings.roboflow_api_key == "test-roboflow-key"
     assert settings.roboflow_currency_project == "some-other-project"
     assert settings.roboflow_currency_version == "3"
+
+
+def test_settings_api_key_defaults_to_empty(monkeypatch):
+    monkeypatch.delenv("BE_MY_EYE_API_KEY", raising=False)
+
+    settings = get_settings()
+
+    assert settings.api_key == ""
+
+
+def test_settings_reads_api_key_override(monkeypatch):
+    monkeypatch.setenv("BE_MY_EYE_API_KEY", "test-secret-key")
+
+    settings = get_settings()
+
+    assert settings.api_key == "test-secret-key"

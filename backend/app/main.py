@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.conversation import create_conversation_router
@@ -31,6 +31,22 @@ from app.services.conversation_service import ConversationService
 from app.services.currency_lookup_service import CurrencyLookupService
 from app.services.intent_router import IntentRouter
 from app.services.session_store import InMemorySessionStore
+
+
+def _make_verify_api_key(expected_key: str):
+    # Cost/abuse protection: the backend URL is public (linked from the
+    # README) and every request triggers paid Groq/Roboflow API calls with
+    # no other gate. When BE_MY_EYE_API_KEY is unset (local dev, CI), the
+    # check is a no-op -- this is opt-in so it never breaks existing setups
+    # that don't configure it.
+    async def verify_api_key(x_api_key: str | None = Header(default=None)) -> None:
+        if expected_key and x_api_key != expected_key:
+            raise HTTPException(
+                status_code=401,
+                detail={"code": "unauthorized", "message": "Missing or invalid API key"},
+            )
+
+    return verify_api_key
 
 
 def create_app() -> FastAPI:
@@ -96,9 +112,10 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.include_router(create_conversation_router(service))
-    app.include_router(create_product_router(product_lookup_provider))
-    app.include_router(create_currency_router(currency_lookup_service))
+    api_key_dependency = [Depends(_make_verify_api_key(settings.api_key))]
+    app.include_router(create_conversation_router(service), dependencies=api_key_dependency)
+    app.include_router(create_product_router(product_lookup_provider), dependencies=api_key_dependency)
+    app.include_router(create_currency_router(currency_lookup_service), dependencies=api_key_dependency)
 
     @app.get("/health")
     def health() -> dict[str, str]:

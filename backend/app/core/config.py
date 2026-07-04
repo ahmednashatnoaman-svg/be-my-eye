@@ -43,6 +43,7 @@ class Settings:
     roboflow_api_key: str = ""
     roboflow_currency_project: str = "egyptian-currency-psnkr"
     roboflow_currency_version: str = "1"
+    api_key: str = ""
 
 
 def get_settings() -> Settings:
@@ -63,4 +64,5 @@ def get_settings() -> Settings:
         roboflow_api_key=os.getenv("ROBOFLOW_API_KEY", ""),
         roboflow_currency_project=os.getenv("ROBOFLOW_CURRENCY_PROJECT", "egyptian-currency-psnkr"),
         roboflow_currency_version=os.getenv("ROBOFLOW_CURRENCY_VERSION", "1"),
+        api_key=os.getenv("BE_MY_EYE_API_KEY", ""),
     )
