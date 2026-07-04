@@ -25,11 +25,10 @@ def test_create_app_wires_grounding_provider_in_fake_mode(monkeypatch):
 def test_create_app_registers_product_lookup_route():
     app = create_app()
 
-    # Newer Starlette versions include some entries in app.routes (e.g. a
-    # mounted/included router as a whole) that don't expose `.path` directly
-    # -- only individual APIRoute-like entries do. Filter to those.
-    paths = {route.path for route in app.routes if hasattr(route, "path")}
-    assert "/product-lookup" in paths
+    # app.routes' shape (flat vs. nested included-router entries) varies
+    # across FastAPI/Starlette versions -- app.openapi()["paths"] is the
+    # stable, version-agnostic way to check which paths are actually served.
+    assert "/product-lookup" in app.openapi()["paths"]
 
 
 def test_create_app_uses_egyptian_tts_in_real_mode(monkeypatch):
@@ -62,5 +61,4 @@ def test_create_app_wires_currency_detector_only_when_roboflow_key_present(monke
 def test_create_app_registers_currency_lookup_route():
     app = create_app()
 
-    paths = {route.path for route in app.routes if hasattr(route, "path")}
-    assert "/currency-lookup" in paths
+    assert "/currency-lookup" in app.openapi()["paths"]
