@@ -4,7 +4,7 @@ from urllib.parse import quote
 
 import httpx
 
-from app.providers.base import ProductLookupProvider
+from app.providers.base import ProductLookupProvider, ProductLookupUnavailableError
 from app.schemas.product import ProductInfo
 
 OPEN_FOOD_FACTS_URL = "https://world.openfoodfacts.org/api/v2/product/{barcode}.json"
@@ -22,8 +22,22 @@ class OpenFoodFactsProductLookupProvider(ProductLookupProvider):
             response = self._client.get(OPEN_FOOD_FACTS_URL.format(barcode=quote(barcode, safe="")))
             response.raise_for_status()
             data = response.json()
-        except Exception:  # noqa: BLE001 -- Open Food Facts being down means "not found", not a 500
-            return None
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                return None
+            raise ProductLookupUnavailableError(
+                f"Open Food Facts returned {exc.response.status_code}"
+            ) from exc
+        except httpx.TransportError as exc:
+            # Timeout, connection refused, DNS failure, etc. -- this is a
+            # failure to reach Open Food Facts, not a genuine "no product
+            # for this barcode" result, so it must not be silently treated
+            # as not-found.
+            raise ProductLookupUnavailableError(f"Could not reach Open Food Facts: {exc}") from exc
+        except Exception as exc:  # noqa: BLE001 -- any other unexpected failure (e.g. malformed
+            # JSON) is a service problem, not a genuine not-found result, and must not leak as an
+            # unhandled 500 either.
+            raise ProductLookupUnavailableError(f"Open Food Facts lookup failed: {exc}") from exc
 
         if data.get("status") != 1:
             return None

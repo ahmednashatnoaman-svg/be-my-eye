@@ -12,6 +12,13 @@ class TTSUnavailableError(Exception):
     """Raised by a TTSProvider when speech synthesis could not be completed."""
 
 
+class ProductLookupUnavailableError(Exception):
+    """Raised by a ProductLookupProvider when the lookup service itself
+    couldn't be reached (timeout, connection error) -- distinct from a
+    genuine "no product for this barcode" result, which is signaled by
+    returning None instead of raising."""
+
+
 class ASRProvider(ABC):
     @abstractmethod
     def transcribe(self, audio_bytes: bytes) -> str:

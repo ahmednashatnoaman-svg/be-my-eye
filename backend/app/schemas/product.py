@@ -20,3 +20,8 @@ class ProductLookupRequest(BaseModel):
 class ProductLookupResponse(BaseModel):
     found: bool
     product: ProductInfo | None = None
+    # True when the lookup couldn't reach Open Food Facts at all (timeout,
+    # connection error) -- distinct from a genuine "no product for this
+    # barcode" result, so the client can say something accurate rather than
+    # implying the barcode itself wasn't found.
+    service_error: bool = False
