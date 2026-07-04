@@ -1,8 +1,13 @@
 # Be My Eye
 
+[![Backend CI](https://github.com/ahmednashatnoaman-svg/be-my-eye/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/ahmednashatnoaman-svg/be-my-eye/actions/workflows/backend-ci.yml)
+[![Mobile CI](https://github.com/ahmednashatnoaman-svg/be-my-eye/actions/workflows/mobile-ci.yml/badge.svg)](https://github.com/ahmednashatnoaman-svg/be-my-eye/actions/workflows/mobile-ci.yml)
+
 An AI-powered voice assistant that helps blind and low-vision users understand and interact with their surroundings. Point a phone camera at a scene, ask a question out loud, and get a concise, natural spoken answer — powered by a Vision-Language Model, speech recognition, and text-to-speech, all orchestrated by a backend that keeps AI providers swappable behind stable interfaces.
 
 > **Design philosophy:** conversation over image captioning. The assistant answers the user's *intent* ("Can I drink this?"), not just describes pixels ("a bottle is present").
+
+**Repository:** [github.com/ahmednashatnoaman-svg/be-my-eye](https://github.com/ahmednashatnoaman-svg/be-my-eye) · **Live backend:** [backend-mu-azure-ghm6imsjg1.vercel.app](https://backend-mu-azure-ghm6imsjg1.vercel.app/health) · **Mobile UI design (Google Stitch):** [stitch.withgoogle.com/projects/1617799956112461546](https://stitch.withgoogle.com/projects/1617799956112461546)
 
 ## Table of Contents
 
