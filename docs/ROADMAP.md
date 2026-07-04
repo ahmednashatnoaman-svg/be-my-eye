@@ -25,18 +25,22 @@ The first version should prove the end-to-end user experience before any advance
 13. Backend accessibility expansion: five new VisionTasks (food, people, environment, clothing, label) with hedged, safety-conscious prompts; barcode-to-product lookup via Open Food Facts (`POST /product-lookup`).
 14. Egyptian-dialect TTS via a free, public Gradio Space (`EgyptianTTSProvider`), live-verified end-to-end, replacing the previous Saudi-dialect Groq voice as the real-mode default. Falls back gracefully (`tts_fallback_required`) to the mobile app's on-device Arabic voice on synthesis failure.
 15. Specialist Egyptian-currency detection (`CurrencyDetectionProvider` / `RoboflowCurrencyProvider`) tried first for currency questions and Money Mode, falling back to the general VLM when unconfident or unconfigured. Originally shipped without live verification (no Roboflow account available); a real `ROBOFLOW_API_KEY` was added afterward and confirmed working end-to-end against the live hosted API — see `docs/superpowers/plans/2026-07-03-backend-roboflow-currency-detection.md`.
-16. Mobile: dedicated Money Mode and barcode-scanning buttons alongside the hold-to-ask flow, plus on-device Arabic TTS fallback wiring (`flutter_tts`, `mobile_scanner`). 28/28 tests passing, `flutter analyze` clean.
+16. Mobile: dedicated Money Mode and barcode-scanning buttons alongside the hold-to-ask flow, plus on-device Arabic TTS fallback wiring (`flutter_tts`, `mobile_scanner`).
+17. Multi-turn conversation memory: `ConversationResponse.transcript` is now always returned, and the mobile app accumulates and sends `history` with each request, so the backend's existing (previously unused) client-supplied-history path is now actually exercised in production. 114 backend / 32 mobile tests passing, `flutter analyze` clean.
 
 ### Not Done Yet
 
-1. Verify mobile playback and all new capture flows (Money Mode, barcode scanning) on a real physical device — everything so far has been verified via Simulator (no camera/mic) plus unit/widget tests. Requires physical hardware access this project did not have during this round.
-2. Confirm the exact class-label strings `RoboflowCurrencyProvider` returns for a real Egyptian banknote. Live-verified against the real hosted API, but only with a non-currency test image (correctly empty prediction list) — no genuine banknote photo was available to test against.
-3. Full multi-turn conversation memory beyond the in-memory starter.
-4. Production hardening and demo polish.
+1. Verify mobile playback and all new capture flows (Money Mode, barcode scanning) on a real physical device — a wirelessly-paired iPhone was available and the app successfully **built for real iOS device architecture** (`flutter build ios`, arm64, not Simulator), confirming all native plugins (camera, record, mobile_scanner, flutter_tts) compile correctly on-device. The interactive install/launch was not completed (deferred per explicit instruction), so live tap-through of Money Mode/barcode/TTS fallback on hardware is still outstanding.
+2. **The `egyptian-currency-psnkr` v1 Roboflow model does not detect real Egyptian banknotes.** Tested against 5 real reference images (official Wikimedia Commons photos of the current 10 EGP and 20 EGP polymer notes, the 100 EGP note, and an older 1-pound bill) at both default and `confidence=1` (near-zero threshold) — every request returned an empty `predictions` list. The API integration itself is confirmed working (200 OK, correct response shape); the model just doesn't fire on any tested real banknote. In production this means `RoboflowCurrencyProvider` will currently defer to the VLM fallback for every real currency query, which the D-017 hybrid architecture handles gracefully, but the "specialist tried first" path is not adding value with this specific model version. Worth swapping in a better-trained Roboflow model or dataset before relying on the specialist path.
+3. Production hardening and demo polish.
 
 ### In Progress
 
-1. None currently — all planned work for this accessibility-expansion round is implemented, tested, deployed, and committed. Backend (113 passed, 1 skipped) and mobile (28/28) test suites and CI are green on `main`; production backend confirmed healthy at `/health` with the rotated Groq key verified end-to-end.
+1. None currently. Backend (114 passed, 1 skipped) and mobile (32/32) test suites and CI are green on `main`; production backend confirmed healthy at `/health` with the rotated Groq key verified end-to-end.
+
+### Recently Closed
+
+1. **Multi-turn conversation memory** — the backend already preferred client-supplied `request.history` over its in-memory session store (which doesn't survive Vercel's serverless cold starts); the mobile app now populates it. `ConversationState` accumulates `ConversationTurn`s from each turn's `transcript`/`text` and sends them with the next request. No new infrastructure required.
 
 ## Guiding Rules
 
@@ -178,8 +182,8 @@ Dependencies:
 | Backend foundation | Done | Scaffold, shared schemas, providers, service, API, and tests are in place. Deployed to Vercel at https://backend-mu-azure-ghm6imsjg1.vercel.app with real Groq providers; full pipeline (ASR → routing → Vision → LLM → TTS) verified live end-to-end. |
 | API and orchestration | Done | `/conversation` works with deterministic fake providers. |
 | Provider adapters | Done | Groq-backed Vision, OCR, Grounding, LLM, ASR adapters, Egyptian TTS (Gradio Space, live-verified), Roboflow currency detection (live-verified with a real API key), and Open Food Facts product lookup are in code and wired into ConversationService; real mode is config-driven. Vision-task routing (scene/currency/color/product/food/people/environment/clothing/label) and grounding support both English and Arabic keywords, verified live. |
-| Mobile app | Done | Full Flutter app implemented (models, backend client, media capture/compression, audio playback + on-device TTS fallback, conversation state, accessible hold-to-ask screen, Money Mode, barcode scanning), Stitch-designed UI applied, 28/28 tests passing, verified running live on iOS Simulator. |
-| Tests | Done | Backend: 113 passed, 1 skipped. Mobile: 28/28 passed, `flutter analyze` clean. Both suites green in CI on `main`. |
+| Mobile app | Done | Full Flutter app implemented (models, backend client, media capture/compression, audio playback + on-device TTS fallback, conversation state with multi-turn history, accessible hold-to-ask screen, Money Mode, barcode scanning), Stitch-designed UI applied, 32/32 tests passing, verified running live on iOS Simulator and building successfully for real iOS device architecture. |
+| Tests | Done | Backend: 114 passed, 1 skipped. Mobile: 32/32 passed, `flutter analyze` clean. Both suites green in CI on `main`. |
 
 ## Component Dependencies
 
