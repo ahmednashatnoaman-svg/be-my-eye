@@ -412,3 +412,49 @@ specialist-path phrases (`DENOMINATION_PHRASES_AR`) already used words, not digi
 closed the same gap for the LLM/VLM-generated paths, which is where it actually
 mattered given D-022 means most real Money Mode use goes through the VLM fallback right
 now, not the specialist path.
+
+---
+
+## D-024: Optional API Key Gate on Protected Endpoints
+
+**Decision**
+
+`BE_MY_EYE_API_KEY` (backend) / `BACKEND_API_KEY` (mobile, via `--dart-define`) adds an
+`X-API-Key` check on `/conversation`, `/currency-lookup`, and `/product-lookup`.
+`/health` stays open. When the backend env var is unset, the check is a no-op — this
+is opt-in, not a breaking requirement for local dev or CI. CORS stays at
+`allow_origins=["*"]`: it's a browser-only mechanism and doesn't stop a non-browser
+client (curl, the app itself) from calling the API directly, so restricting it
+wouldn't add real protection — the API key is the actual gate.
+
+**Reason**
+
+The backend URL is public (linked from the README's live-backend badge on a public
+GitHub repo), and every request triggers paid Groq/Roboflow API calls. With zero
+authentication, anyone who found the URL could drain that quota. Found via an external
+code audit; verified live in production after deploying (`/health` still 200,
+`/conversation` without a key now 401, with the correct key still 200/400 as normal).
+
+---
+
+## D-025: Barcode Lookup Distinguishes "Service Unreachable" from "Not Found"
+
+**Decision**
+
+`OpenFoodFactsProductLookupProvider` now raises `ProductLookupUnavailableError` for
+transport-level failures (timeout, connection error) and unexpected 5xx/malformed
+responses, instead of folding them into the same `None` return used for a genuine
+"no product for this barcode" result. The API sets a new `service_error` flag
+(default `False`) on `ProductLookupResponse`; the mobile client speaks a distinct
+message ("search service unavailable right now, try again shortly") instead of
+"couldn't find a product" when it's set.
+
+**Reason**
+
+Found via an external code audit: a blanket `except Exception: return None` meant a
+real Open Food Facts outage sounded identical to a genuine not-found barcode. The
+audit's suggested fix ("tell the user to check their internet connection") was
+rejected as inaccurate: the failure is the *backend's* server-side connection to a
+third-party API, not the user's phone's connection to the backend (which, by
+definition, already succeeded for the request to have arrived) — telling the user to
+check their own internet would be wrong advice they can't act on.

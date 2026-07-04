@@ -195,11 +195,13 @@ flutter run --dart-define=BACKEND_URL=https://backend-mu-azure-ghm6imsjg1.vercel
 
 This runs the app against the deployed backend. To point at a local backend instead, run `uvicorn app.main:app --reload` in `backend/` and pass `--dart-define=BACKEND_URL=http://localhost:8000` (use your machine's LAN IP, not `localhost`, when running on a physical device).
 
+If the backend has `BE_MY_EYE_API_KEY` set (the deployed production backend does), also pass `--dart-define=BACKEND_API_KEY=<the same key>` — otherwise every request gets a `401`. Prefer `--dart-define-from-file=<path>.json` over putting the key directly on the command line so it doesn't end up in shell history.
+
 **Camera and microphone require real hardware.** The iOS Simulator and Android Emulator have neither — holding the "Hold to ask" button there shows "Could not access the camera" / "Could not start recording" errors, which is expected, not a bug. For a full test of the capture pipeline, run on a physical device:
 
 ```bash
 flutter devices              # confirm your device is listed
-flutter run -d <device-id> --dart-define=BACKEND_URL=https://backend-mu-azure-ghm6imsjg1.vercel.app
+flutter run -d <device-id> --dart-define=BACKEND_URL=https://backend-mu-azure-ghm6imsjg1.vercel.app --dart-define=BACKEND_API_KEY=<key>
 ```
 
 On iOS, a physical device needs a signing team configured in Xcode (`open ios/Runner.xcworkspace`, then Signing & Capabilities) the first time you deploy to it.
@@ -319,6 +321,7 @@ All settings are read by `backend/app/core/config.py`. A `.env` file at the repo
 | `BE_MY_EYE_APP_NAME` | FastAPI app title | `Be My Eye Backend` |
 | `BE_MY_EYE_ENV` | Environment label | `development` |
 | `BE_MY_EYE_DEBUG` | FastAPI debug mode | `true` |
+| `BE_MY_EYE_API_KEY` | Requires this exact value in the `X-API-Key` header on `/conversation`, `/currency-lookup`, and `/product-lookup` (not `/health`) — protects the deployed backend from unauthenticated requests draining paid Groq/Roboflow quota. Unset (default) disables the check entirely, so local dev/CI need nothing. **Already configured on the deployed production backend and mobile app.** | *(none)* |
 
 > **Note on defaults:** the ASR language defaults to Arabic — this reflects the project's current target users. Override `GROQ_ASR_LANGUAGE` for other languages. The default TTS voice is now Egyptian-dialect (`EgyptianTTSProvider`, real-mode default in `create_app()`); `GroqTTSProvider`'s Saudi voice remains in the codebase as an alternate implementation of the same `TTSProvider` interface but isn't used by default.
 
