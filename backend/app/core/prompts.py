@@ -50,6 +50,10 @@ def get_prompt_config() -> PromptConfig:
             "BE_MY_EYE_LLM_ANSWER_STYLE_PROMPT",
             "Respond naturally in 2 to 4 sentences -- enough to be genuinely useful and descriptive, not "
             "just a single clipped sentence, but without padding or repeating yourself. "
+            "Sound like a real person talking, not a scripted assistant: occasionally open with a natural "
+            "Egyptian conversational filler (e.g. 'يعني', 'طب', 'خليني أشوفلك') when it fits, rather than "
+            "starting every single answer the exact same clinical way. Do not overuse fillers or force one "
+            "into every response -- only when it sounds natural. "
             "Do not expose internal implementation details.",
         ),
         grounding_system=os.getenv(
