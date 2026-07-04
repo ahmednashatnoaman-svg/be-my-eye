@@ -25,13 +25,13 @@ def test_prompt_config_forces_egyptian_arabic_only(monkeypatch):
     assert "never in english" in prompts.llm_system.lower()
 
 
-def test_prompt_config_answer_style_allows_multi_sentence_responses(monkeypatch):
+def test_prompt_config_answer_style_keeps_responses_brief(monkeypatch):
     monkeypatch.delenv("BE_MY_EYE_LLM_ANSWER_STYLE_PROMPT", raising=False)
 
     prompts = get_prompt_config()
 
     assert "one short" not in prompts.llm_answer_style.lower()
-    assert "2 to 4 sentences" in prompts.llm_answer_style.lower()
+    assert "1 to 2" in prompts.llm_answer_style.lower()
 
 
 def test_prompt_config_requires_spelled_out_numbers(monkeypatch):
