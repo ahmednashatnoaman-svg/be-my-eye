@@ -54,6 +54,18 @@ void main() {
     expect(response.debug?.selectedProviders, ['vision']);
   });
 
+  test('ConversationDebug parses vision_task and grounding_result', () {
+    final debug = ConversationDebug.fromJson({
+      'transcript': 'where are my keys',
+      'selected_providers': ['vision', 'grounding'],
+      'vision_task': 'scene',
+      'grounding_result': 'on the kitchen counter',
+    });
+
+    expect(debug.visionTask, 'scene');
+    expect(debug.groundingResult, 'on the kitchen counter');
+  });
+
   test('ConversationResponse defaults transcript to empty string when absent', () {
     final response = ConversationResponse.fromJson({
       'session_id': 'session-1',

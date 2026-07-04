@@ -40,12 +40,16 @@ class ConversationDebug {
     required this.selectedProviders,
     this.visionSummary,
     this.ocrText,
+    this.visionTask,
+    this.groundingResult,
   });
 
   final String transcript;
   final List<String> selectedProviders;
   final String? visionSummary;
   final String? ocrText;
+  final String? visionTask;
+  final String? groundingResult;
 
   factory ConversationDebug.fromJson(Map<String, dynamic> json) {
     return ConversationDebug(
@@ -53,6 +57,8 @@ class ConversationDebug {
       selectedProviders: List<String>.from(json['selected_providers'] as List),
       visionSummary: json['vision_summary'] as String?,
       ocrText: json['ocr_text'] as String?,
+      visionTask: json['vision_task'] as String?,
+      groundingResult: json['grounding_result'] as String?,
     );
   }
 }
