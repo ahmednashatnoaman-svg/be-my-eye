@@ -42,7 +42,10 @@ class ConversationService:
         audio_bytes = self._decode_base64(request.audio_base64, "audio_base64")
         image_bytes = self._decode_base64(request.image_base64, "image_base64")
 
-        transcript = self.asr.transcribe(audio_bytes)
+        try:
+            transcript = self.asr.transcribe(audio_bytes)
+        except Exception as exc:  # noqa: BLE001 -- upstream ASR provider rejected the audio
+            raise ConversationError("Could not process the provided audio.") from exc
         history = request.history or self.session_store.get_history(request.session_id)
         decision = self.router.route(transcript)
 

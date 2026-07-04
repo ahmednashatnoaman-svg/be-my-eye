@@ -1,5 +1,7 @@
 import base64
 
+import pytest
+
 from app.providers.fakes import (
     FakeASRProvider,
     FakeGroundingProvider,
@@ -10,9 +12,14 @@ from app.providers.fakes import (
 )
 from app.schemas.common import VisionTask
 from app.schemas.conversation import ConversationRequest
-from app.services.conversation_service import ConversationService
+from app.services.conversation_service import ConversationError, ConversationService
 from app.services.intent_router import IntentRouter
 from app.services.session_store import InMemorySessionStore
+
+
+class RaisingASRProvider:
+    def transcribe(self, audio_bytes: bytes) -> str:
+        raise RuntimeError("could not process file - is it a valid media file?")
 
 
 def make_service(currency_detector=None) -> ConversationService:
@@ -47,6 +54,27 @@ def test_conversation_service_returns_response_and_debug():
     assert response.debug.transcript == "Read this page"
     assert response.debug.selected_providers == ["vision", "ocr"]
     assert response.debug.vision_task == VisionTask.scene.value
+
+
+def test_conversation_service_raises_conversation_error_when_asr_rejects_audio():
+    service = ConversationService(
+        asr=RaisingASRProvider(),
+        vision=FakeVisionProvider(),
+        ocr=FakeOCRProvider(),
+        llm=FakeLLMProvider(),
+        tts=FakeTTSProvider(),
+        grounding=FakeGroundingProvider(),
+        session_store=InMemorySessionStore(),
+        router=IntentRouter(),
+    )
+    request = ConversationRequest(
+        session_id="session-1",
+        image_base64=base64.b64encode(b"image-bytes").decode("ascii"),
+        audio_base64=base64.b64encode(b"not a real audio file").decode("ascii"),
+    )
+
+    with pytest.raises(ConversationError):
+        service.handle(request)
 
 
 def test_conversation_service_persists_history():
