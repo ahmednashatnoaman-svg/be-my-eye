@@ -30,10 +30,12 @@ class ConversationState extends ChangeNotifier {
   String? _lastError;
   ConversationResponse? _lastResponse;
   bool _isBusy = false;
+  final List<ConversationTurn> _history = [];
 
   String? get lastError => _lastError;
   ConversationResponse? get lastResponse => _lastResponse;
   bool get isBusy => _isBusy;
+  List<ConversationTurn> get history => List.unmodifiable(_history);
 
   void loadDemoCapture() {
     _capturedImageBase64 = DemoCapture.imageBase64();
@@ -96,10 +98,14 @@ class ConversationState extends ChangeNotifier {
           imageBase64: imageBase64,
           audioBase64: audioBase64,
           debug: debug,
+          history: List.unmodifiable(_history),
         ),
       );
       _lastResponse = response;
       _lastError = null;
+      if (response.transcript.isNotEmpty) {
+        _history.add(ConversationTurn(userText: response.transcript, assistantText: response.text));
+      }
     } catch (error) {
       _lastError = error.toString();
     } finally {

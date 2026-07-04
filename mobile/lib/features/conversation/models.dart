@@ -1,21 +1,36 @@
+class ConversationTurn {
+  ConversationTurn({required this.userText, required this.assistantText});
+
+  final String userText;
+  final String assistantText;
+
+  Map<String, dynamic> toJson() => {
+        'user_text': userText,
+        'assistant_text': assistantText,
+      };
+}
+
 class ConversationRequest {
   ConversationRequest({
     required this.sessionId,
     required this.imageBase64,
     required this.audioBase64,
     this.debug = false,
+    this.history = const [],
   });
 
   final String sessionId;
   final String imageBase64;
   final String audioBase64;
   final bool debug;
+  final List<ConversationTurn> history;
 
   Map<String, dynamic> toJson() => {
         'session_id': sessionId,
         'image_base64': imageBase64,
         'audio_base64': audioBase64,
         'debug': debug,
+        'history': history.map((turn) => turn.toJson()).toList(),
       };
 }
 
@@ -47,6 +62,7 @@ class ConversationResponse {
     required this.sessionId,
     required this.text,
     required this.audioBase64,
+    this.transcript = '',
     this.ttsFallbackRequired = false,
     this.debug,
   });
@@ -54,6 +70,7 @@ class ConversationResponse {
   final String sessionId;
   final String text;
   final String audioBase64;
+  final String transcript;
   final bool ttsFallbackRequired;
   final ConversationDebug? debug;
 
@@ -62,6 +79,7 @@ class ConversationResponse {
       sessionId: json['session_id'] as String,
       text: json['text'] as String,
       audioBase64: json['audio_base64'] as String,
+      transcript: json['transcript'] as String? ?? '',
       ttsFallbackRequired: json['tts_fallback_required'] as bool? ?? false,
       debug: json['debug'] != null
           ? ConversationDebug.fromJson(json['debug'] as Map<String, dynamic>)

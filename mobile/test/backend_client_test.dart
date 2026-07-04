@@ -44,6 +44,7 @@ void main() {
         'image_base64': 'image',
         'audio_base64': 'audio',
         'debug': false,
+        'history': [],
       },
     );
     expect(response.text, 'assistant reply');

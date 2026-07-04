@@ -16,13 +16,28 @@ void main() {
       'image_base64': 'image',
       'audio_base64': 'audio',
       'debug': true,
+      'history': [],
     });
+  });
+
+  test('ConversationRequest serializes history turns to backend keys', () {
+    final request = ConversationRequest(
+      sessionId: 'session-1',
+      imageBase64: 'image',
+      audioBase64: 'audio',
+      history: [ConversationTurn(userText: 'What is this?', assistantText: 'A red mug.')],
+    );
+
+    expect(request.toJson()['history'], [
+      {'user_text': 'What is this?', 'assistant_text': 'A red mug.'},
+    ]);
   });
 
   test('ConversationResponse parses backend response shape', () {
     final response = ConversationResponse.fromJson({
       'session_id': 'session-1',
       'text': 'hello',
+      'transcript': 'what is this',
       'audio_base64': 'abcd',
       'debug': {
         'transcript': 'what is this',
@@ -34,8 +49,19 @@ void main() {
 
     expect(response.sessionId, 'session-1');
     expect(response.text, 'hello');
+    expect(response.transcript, 'what is this');
     expect(response.audioBase64, 'abcd');
     expect(response.debug?.selectedProviders, ['vision']);
+  });
+
+  test('ConversationResponse defaults transcript to empty string when absent', () {
+    final response = ConversationResponse.fromJson({
+      'session_id': 'session-1',
+      'text': 'hello',
+      'audio_base64': 'abcd',
+    });
+
+    expect(response.transcript, '');
   });
 
   test('ConversationResponse parses tts_fallback_required, defaulting to false', () {

@@ -11,15 +11,19 @@ class FakeBackendClient extends BackendClient {
   FakeBackendClient() : super(baseUrl: 'http://localhost');
 
   ConversationRequest? lastRequest;
+  final List<ConversationRequest> allRequests = [];
   String? lastCurrencyImageBase64;
   String? lastBarcode;
 
   @override
   Future<ConversationResponse> sendConversation(ConversationRequest request) async {
     lastRequest = request;
+    allRequests.add(request);
+    final turnNumber = allRequests.length;
     return ConversationResponse(
       sessionId: request.sessionId,
-      text: 'assistant reply',
+      text: 'assistant reply $turnNumber',
+      transcript: 'transcript $turnNumber',
       audioBase64: 'response-audio',
     );
   }
@@ -157,7 +161,7 @@ void main() {
 
     expect(backendClient.lastRequest?.sessionId, 'session-1');
     expect(backendClient.lastRequest?.debug, isTrue);
-    expect(state.lastResponse?.text, 'assistant reply');
+    expect(state.lastResponse?.text, 'assistant reply 1');
     expect(state.lastError, isNull);
   });
 
@@ -264,6 +268,51 @@ void main() {
     await state.captureImage();
 
     expect(state.lastResponse, isNull);
+  });
+
+  test('ConversationState accumulates conversation turns as multi-turn history', () async {
+    final backendClient = FakeBackendClient();
+    final state = ConversationState(
+      backendClient: backendClient,
+      mediaCaptureService: FakeMediaCaptureService(),
+      audioPlaybackService: FakeAudioPlaybackService(),
+      osTtsFallbackService: FakeOsTtsFallbackService(),
+    );
+
+    state.loadDemoCapture();
+    await state.submit(sessionId: 'session-multi-turn');
+    state.loadDemoCapture();
+    await state.submit(sessionId: 'session-multi-turn');
+
+    expect(state.history, [
+      isA<ConversationTurn>()
+          .having((turn) => turn.userText, 'userText', 'transcript 1')
+          .having((turn) => turn.assistantText, 'assistantText', 'assistant reply 1'),
+      isA<ConversationTurn>()
+          .having((turn) => turn.userText, 'userText', 'transcript 2')
+          .having((turn) => turn.assistantText, 'assistantText', 'assistant reply 2'),
+    ]);
+  });
+
+  test('ConversationState sends accumulated history with the next request', () async {
+    final backendClient = FakeBackendClient();
+    final state = ConversationState(
+      backendClient: backendClient,
+      mediaCaptureService: FakeMediaCaptureService(),
+      audioPlaybackService: FakeAudioPlaybackService(),
+      osTtsFallbackService: FakeOsTtsFallbackService(),
+    );
+
+    state.loadDemoCapture();
+    await state.submit(sessionId: 'session-multi-turn');
+    expect(backendClient.allRequests[0].history, isEmpty);
+
+    state.loadDemoCapture();
+    await state.submit(sessionId: 'session-multi-turn');
+
+    expect(backendClient.allRequests[1].history, hasLength(1));
+    expect(backendClient.allRequests[1].history.first.userText, 'transcript 1');
+    expect(backendClient.allRequests[1].history.first.assistantText, 'assistant reply 1');
   });
 
   test('ConversationState speaks locally when tts_fallback_required is true', () async {
