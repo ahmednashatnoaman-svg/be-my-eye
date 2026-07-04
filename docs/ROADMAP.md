@@ -22,17 +22,21 @@ The first version should prove the end-to-end user experience before any advance
 10. Mobile UI was designed via Google Stitch (idle/listening/thinking/answer states) and applied to the app; verified running live on an iOS Simulator (iPhone 16e) and confirmed rendering correctly.
 11. Backend deployed to Vercel at https://backend-mu-azure-ghm6imsjg1.vercel.app with real Groq providers. Full pipeline verified live end-to-end, including TTS synthesis.
 12. Vision-task routing (currency, color, product, scene) and object-finder grounding are wired into ConversationService, with Arabic keyword support (this app's ASR defaults to Arabic) verified live end-to-end via real Groq TTS/ASR round-trips.
+13. Backend accessibility expansion: five new VisionTasks (food, people, environment, clothing, label) with hedged, safety-conscious prompts; barcode-to-product lookup via Open Food Facts (`POST /product-lookup`).
+14. Egyptian-dialect TTS via a free, public Gradio Space (`EgyptianTTSProvider`), live-verified end-to-end, replacing the previous Saudi-dialect Groq voice as the real-mode default. Falls back gracefully (`tts_fallback_required`) to the mobile app's on-device Arabic voice on synthesis failure.
+15. Specialist Egyptian-currency detection (`CurrencyDetectionProvider` / `RoboflowCurrencyProvider`) tried first for currency questions and Money Mode, falling back to the general VLM when unconfident or unconfigured. Written against Roboflow's documented REST contract but not live-verified (needs a free Roboflow account this session didn't have) — see `docs/superpowers/plans/2026-07-03-backend-roboflow-currency-detection.md`.
+16. Mobile: dedicated Money Mode and barcode-scanning buttons alongside the hold-to-ask flow, plus on-device Arabic TTS fallback wiring (`flutter_tts`, `mobile_scanner`). 28/28 tests passing, `flutter analyze` clean.
 
 ### Not Done Yet
 
-1. Finish Flutter camera and microphone capture wiring.
-2. Verify mobile playback on-device.
-3. Full multi-turn conversation memory beyond the in-memory starter.
-4. Production hardening and demo polish.
+1. Verify mobile playback and all new capture flows (Money Mode, barcode scanning) on a real physical device — everything so far has been verified via Simulator (no camera/mic) plus unit/widget tests.
+2. Full multi-turn conversation memory beyond the in-memory starter.
+3. Production hardening and demo polish.
+4. Roboflow account setup (see `README.md#enabling-accurate-egyptian-currency-detection-optional-free`) — currency detection works today via VLM fallback but hasn't been exercised against the real specialist model.
 
 ### In Progress
 
-1. Phase 3 is underway and the first capture/playback wiring is in place.
+1. None currently — all planned work for this accessibility-expansion round is implemented, tested, and committed.
 
 ## Guiding Rules
 
@@ -173,9 +177,9 @@ Dependencies:
 | Playground experiments | Done | VLM and depth prototypes exist for reference only. |
 | Backend foundation | Done | Scaffold, shared schemas, providers, service, API, and tests are in place. Deployed to Vercel at https://backend-mu-azure-ghm6imsjg1.vercel.app with real Groq providers; full pipeline (ASR → routing → Vision → LLM → TTS) verified live end-to-end. |
 | API and orchestration | Done | `/conversation` works with deterministic fake providers. |
-| Provider adapters | Done | Groq-backed Vision, OCR, Grounding, LLM, ASR, and TTS adapters are in code and wired into ConversationService; real mode is config-driven. Vision-task routing (currency/color/product/scene) and grounding support both English and Arabic keywords, verified live. |
-| Mobile app | Done | Full Flutter app implemented (models, backend client, media capture/compression, audio playback, conversation state, accessible hold-to-ask screen), Stitch-designed UI applied, 16/16 tests passing, verified running live on iOS Simulator. |
-| Tests | Done | The Phase 1 slice has pytest coverage and passes. |
+| Provider adapters | Done | Groq-backed Vision, OCR, Grounding, LLM, ASR adapters, Egyptian TTS (Gradio Space, live-verified), Roboflow currency detection (not live-verified), and Open Food Facts product lookup are in code and wired into ConversationService; real mode is config-driven. Vision-task routing (scene/currency/color/product/food/people/environment/clothing/label) and grounding support both English and Arabic keywords, verified live. |
+| Mobile app | Done | Full Flutter app implemented (models, backend client, media capture/compression, audio playback + on-device TTS fallback, conversation state, accessible hold-to-ask screen, Money Mode, barcode scanning), Stitch-designed UI applied, 28/28 tests passing, verified running live on iOS Simulator. |
+| Tests | Done | Backend: 110 passed, 1 skipped. Mobile: 28/28 passed, `flutter analyze` clean. |
 
 ## Component Dependencies
 

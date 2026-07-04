@@ -24,14 +24,21 @@ An AI-powered voice assistant that helps blind and low-vision users understand a
 
 - **Scene understanding** — "What's in front of me?" answered from the latest camera frame.
 - **Object questions** — "Can I drink this?" answered with intent, not a generic description.
-- **Currency reader** — "How much is this?" identifies banknote denominations.
+- **Currency reader** — one-tap **Money Mode** button tries a specialist Egyptian-banknote detector first (Roboflow-hosted, when configured), falling back to the general VLM; voice questions ("how much is this?") also route to the currency task.
 - **Color detector** — "What color is this?" describes the color of an object.
 - **Product identifier** — "What am I holding?" reads brand/label context from packaging.
+- **Food identification** — "What am I eating?" names the dish and visible ingredients, with hedged dietary/allergen/nutrition notes.
+- **People & social awareness** — "Is anyone in front of me?" describes count, orientation, and expression — never identifies who someone is.
+- **Environment & safety cues** — "Is the light on?" reports lighting, brightness, and visible stove/burner state.
+- **Clothing matching** — "Do my clothes match?" checks color coordination and visible stains.
+- **Label reading** — "Has this expired?" reads expiry dates and medicine names from a label.
+- **Barcode / product lookup** — one-tap barcode scan looks up product name, brand, ingredients, and allergens via Open Food Facts.
 - **Object finder (grounding)** — "Where are my keys?" locates an object within the frame.
 - **Text reading (OCR)** — "Read this page" extracts and reads visible text aloud.
 - **Multi-turn conversation memory** — short-term history so follow-ups ("Is it open?") resolve naturally.
 - **Fully voice-driven, bilingual** — spoken input in (English or Arabic), spoken response out, no typing required.
-- **Provider-based architecture** — every AI capability (ASR, Vision, OCR, LLM, TTS, Grounding) sits behind a stable interface, so any model or vendor can be swapped without touching application logic.
+- **Egyptian-dialect voice, with an offline fallback** — real Egyptian-Arabic TTS when reachable; if cloud synthesis fails, the phone speaks the answer itself using its built-in offline Arabic voice, so the app is never silent.
+- **Provider-based architecture** — every AI capability (ASR, Vision, OCR, LLM, TTS, Grounding, currency detection, product lookup) sits behind a stable interface, so any model or vendor can be swapped without touching application logic.
 
 ## Project Status
 
@@ -40,10 +47,13 @@ This is an active proof-of-concept. Be honest with yourself about what's real be
 | Component | Status |
 | --- | --- |
 | Backend (FastAPI) | **Working, tested, deployed** — live on Vercel with real Groq providers |
-| Backend test suite | **Green** — 54 passed, 1 skipped (real-mode smoke test is env-gated) |
-| Mobile app (Flutter) | **Working** — full app implemented (capture, playback, conversation state, Stitch-designed hold-to-ask screen), 20/20 tests passing, verified running live on an iOS Simulator |
-| Vision-task routing + grounding | **Working** — currency/color/product/scene routing and object-finder grounding, with Arabic keyword support (this app's ASR defaults to Arabic), verified live end-to-end |
+| Backend test suite | **Green** — 110 passed, 1 skipped (real-mode smoke test is env-gated) |
+| Mobile app (Flutter) | **Working** — full app implemented (capture, playback, conversation state, Money Mode, barcode scanning, Stitch-designed hold-to-ask screen), 28/28 tests passing, `flutter analyze` clean |
+| Vision-task routing + grounding | **Working** — scene/currency/color/product/food/people/environment/clothing/label routing and object-finder grounding, with Arabic keyword support (this app's ASR defaults to Arabic), verified live end-to-end |
 | `/conversation` end-to-end | **Fully verified live** — ASR → routing → Vision/OCR/Grounding → LLM → TTS all confirmed working against real Groq APIs |
+| Egyptian currency detection | **Code complete, not live-verified** — `RoboflowCurrencyProvider` is written against Roboflow's documented REST contract but needs a free Roboflow account + API key to actually run; falls back to the general VLM until then (see [Environment Variables](#environment-variables)) |
+| Egyptian TTS voice | **Working, live-verified** — calls a free, public Gradio Space for Egyptian-dialect speech; falls back to the phone's offline Arabic voice on failure |
+| Product/barcode lookup | **Working, live-verified** — free Open Food Facts API, no account needed |
 | CI/CD | **Set up** — GitHub Actions run backend `pytest` and mobile `flutter analyze && flutter test` on every PR; deploys remain manual via the Vercel CLI |
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the full phased plan and [`docs/superpowers/plans/`](docs/superpowers/plans/) for the detailed, task-by-task implementation plans driving this work.
@@ -53,7 +63,11 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the full phased plan and [`docs/sup
 **Backend**
 - **Language:** Python 3.11+ (deployed with 3.13)
 - **Framework:** FastAPI
-- **AI Provider:** [Groq](https://console.groq.com) — Vision-Language Model, Whisper (ASR), and TTS, all behind provider interfaces
+- **AI Provider:** [Groq](https://console.groq.com) — Vision-Language Model, Whisper (ASR), and LLM reasoning, all behind provider interfaces
+- **Egyptian TTS:** [`gradio_client`](https://pypi.org/project/gradio-client/) calling a free, public Hugging Face Gradio Space
+- **Currency detection:** [Roboflow](https://roboflow.com) hosted inference (optional — falls back to the VLM without it)
+- **Product lookup:** [Open Food Facts](https://world.openfoodfacts.org) (free, no API key)
+- **HTTP client:** `httpx` (product lookup, currency detection)
 - **Validation:** Pydantic v2
 - **Image handling:** Pillow
 - **Server:** Uvicorn (local dev)
@@ -63,7 +77,8 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the full phased plan and [`docs/sup
 - **Framework:** Flutter (Dart SDK ≥3.8.0)
 - **State management:** `provider` (`ChangeNotifier`-based `ConversationState`)
 - **Camera:** `camera`
-- **Audio:** `record` (capture), `just_audio` (playback)
+- **Barcode scanning:** `mobile_scanner`
+- **Audio:** `record` (capture), `just_audio` (cloud-voice playback), `flutter_tts` (on-device Arabic fallback voice)
 - **Networking:** `http`
 - **Permissions:** `permission_handler`
 - **Image compression:** `image`
@@ -196,21 +211,29 @@ be-my-eye/
 │   ├── app/
 │   │   ├── main.py                    # FastAPI app factory, provider wiring, CORS
 │   │   ├── api/
-│   │   │   └── conversation.py        # POST /conversation route
+│   │   │   ├── conversation.py        # POST /conversation route
+│   │   │   ├── product.py             # POST /product-lookup route
+│   │   │   └── currency.py            # POST /currency-lookup route (fast Money Mode path)
 │   │   ├── core/
 │   │   │   ├── config.py              # Settings from environment variables
-│   │   │   └── prompts.py             # Prompt templates for each provider
+│   │   │   └── prompts.py             # Prompt templates for each provider/VisionTask
 │   │   ├── schemas/
-│   │   │   ├── common.py              # ConversationTurn, ConversationResponse, ErrorResponse
-│   │   │   └── conversation.py        # ConversationRequest
+│   │   │   ├── common.py              # ConversationTurn, ConversationResponse, VisionTask, ErrorResponse
+│   │   │   ├── conversation.py        # ConversationRequest
+│   │   │   ├── product.py             # ProductInfo, ProductLookupRequest/Response
+│   │   │   └── currency.py            # CurrencyDetectionResult, CurrencyLookupRequest/Response
 │   │   ├── services/
-│   │   │   ├── conversation_service.py  # Orchestration: ASR -> route -> Vision/OCR -> LLM -> TTS
-│   │   │   ├── intent_router.py         # Decides which providers a request needs
-│   │   │   └── session_store.py         # In-memory conversation history
+│   │   │   ├── conversation_service.py     # Orchestration: ASR -> route -> Vision/OCR -> LLM -> TTS
+│   │   │   ├── currency_lookup_service.py  # Fast, non-conversational path for the Money button
+│   │   │   ├── intent_router.py            # Decides which providers a request needs (EN+AR keywords)
+│   │   │   └── session_store.py            # In-memory conversation history
 │   │   └── providers/
-│   │       ├── base.py                # Abstract provider interfaces (ASR/Vision/OCR/LLM/TTS/Grounding)
+│   │       ├── base.py                # Abstract provider interfaces
 │   │       ├── fakes.py                # Deterministic fake providers (no API calls)
-│   │       └── groq.py                 # Real Groq-backed provider implementations
+│   │       ├── groq.py                 # Real Groq-backed provider implementations
+│   │       ├── egyptian_tts.py          # Egyptian-dialect TTS via a free Gradio Space
+│   │       ├── roboflow_currency.py     # Specialist currency detector via Roboflow hosted inference
+│   │       └── openfoodfacts.py         # Barcode -> product lookup via Open Food Facts
 │   ├── tests/
 │   │   ├── unit/                      # One test file per production module
 │   │   └── integration/               # Full-endpoint tests, real-mode smoke test (env-gated)
@@ -223,15 +246,17 @@ be-my-eye/
 │   ├── lib/
 │   │   ├── main.dart                          # Entry point, wires real services into ConversationState
 │   │   └── features/conversation/
-│   │       ├── conversation_screen.dart       # Accessible hold-to-ask screen (Stitch-designed UI)
+│   │       ├── conversation_screen.dart       # Accessible hold-to-ask screen (Stitch-designed UI) + Money/barcode buttons
 │   │       ├── conversation_state.dart        # ChangeNotifier orchestrating capture -> submit -> playback
-│   │       ├── backend_client.dart            # POST /conversation HTTP client
+│   │       ├── backend_client.dart            # /conversation, /product-lookup, /currency-lookup HTTP client
 │   │       ├── media_services.dart            # Camera/mic capture + image compression
-│   │       ├── audio_playback.dart            # Speech playback
+│   │       ├── audio_playback.dart            # Cloud-voice speech playback
+│   │       ├── os_tts_fallback.dart           # On-device Arabic voice, used when cloud TTS fails
+│   │       ├── barcode_scanner_screen.dart    # Camera-based barcode scan screen
 │   │       ├── models.dart                    # Request/response models
 │   │       └── demo_capture.dart              # Hardcoded demo image/audio for quick manual testing
-│   ├── test/                          # 20 tests covering state, models, capture, and the screen's semantics
-│   └── pubspec.yaml                   # camera, record, just_audio, http, provider, permission_handler, image, google_fonts
+│   ├── test/                          # 28 tests covering state, models, capture, and the screen's semantics
+│   └── pubspec.yaml                   # camera, mobile_scanner, record, just_audio, flutter_tts, http, provider, permission_handler, image, google_fonts
 ├── docs/                              # Vision, requirements, architecture, decisions, roadmap
 │   └── superpowers/                   # Design specs and implementation plans for this effort
 └── playground/                        # Prototype scripts (VLM, depth) — reference only, not production code
@@ -259,8 +284,12 @@ Every AI capability is an abstract base class in `backend/app/providers/base.py`
 | `VisionProvider` | Scene/question understanding | Deterministic summary | Groq Vision-Language Model |
 | `OCRProvider` | Text extraction from images | Deterministic text | Delegates to the same Groq VLM |
 | `LLMProvider` | Final response reasoning | Deterministic response | Groq LLM |
-| `TTSProvider` | Text → speech | Deterministic UTF-8 bytes | Groq TTS |
+| `TTSProvider` | Text → speech | Deterministic UTF-8 bytes | `EgyptianTTSProvider` (Gradio Space) by default; `GroqTTSProvider` (Saudi voice) remains available as an alternate implementation |
 | `GroundingProvider` | Object location ("where are my keys?") | Deterministic location string | Groq VLM |
+| `CurrencyDetectionProvider` | Specialist Egyptian-currency detection | Deterministic confident result | `RoboflowCurrencyProvider` (only when `ROBOFLOW_API_KEY` is set — otherwise `ConversationService` falls back to the VLM automatically) |
+| `ProductLookupProvider` | Barcode → product name/ingredients/allergens | Deterministic sample product | Open Food Facts |
+
+A response's speech synthesis can fail gracefully: `TTSUnavailableError` sets `tts_fallback_required: true` and empty `audio_base64` in the response, which the mobile client uses to speak the response text with the phone's own offline Arabic voice instead of failing silently.
 
 Swapping any provider's implementation — a different vendor, a local model, a specialized OCR engine — never requires changing `ConversationService`, the API contract, or the mobile client. See [`docs/PROVIDERS.md`](docs/PROVIDERS.md).
 
@@ -276,13 +305,28 @@ All settings are read by `backend/app/core/config.py`. A `.env` file at the repo
 | `GROQ_LLM_MODEL` | Groq model for final response reasoning | `llama-3.3-70b-versatile` |
 | `GROQ_ASR_MODEL` | Groq model for speech-to-text | `whisper-large-v3` |
 | `GROQ_ASR_LANGUAGE` | ASR language hint | `ar` (Arabic) |
-| `GROQ_TTS_MODEL` | Groq model for text-to-speech | `canopylabs/orpheus-arabic-saudi` |
-| `GROQ_TTS_VOICE` | TTS voice name | `abdullah` |
+| `GROQ_TTS_MODEL` | Groq model for text-to-speech (used only if `EgyptianTTSProvider` is bypassed — see below) | `canopylabs/orpheus-arabic-saudi` |
+| `GROQ_TTS_VOICE` | Groq TTS voice name | `abdullah` |
+| `EGYPTIAN_TTS_SPACE_ID` | Hugging Face Space used for Egyptian-dialect speech (free, public, no API key) | `omarelshehy/NAMAA-Egyptian-Voice` |
+| `ROBOFLOW_API_KEY` | Enables the Egyptian-currency specialist detector for Money Mode and voice currency questions; **without it, currency questions fall back to the general VLM** — the app works fine either way | *(none)* |
+| `ROBOFLOW_CURRENCY_PROJECT` | Roboflow project slug for the currency model (confirm via your account's "Get curl command") | `egyptian-currency-psnkr` |
+| `ROBOFLOW_CURRENCY_VERSION` | Roboflow model version number | `1` |
 | `BE_MY_EYE_APP_NAME` | FastAPI app title | `Be My Eye Backend` |
 | `BE_MY_EYE_ENV` | Environment label | `development` |
 | `BE_MY_EYE_DEBUG` | FastAPI debug mode | `true` |
 
-> **Note on defaults:** the ASR language and TTS voice default to Arabic — this reflects the project's current target users. Override `GROQ_ASR_LANGUAGE`/`GROQ_TTS_MODEL`/`GROQ_TTS_VOICE` for other languages.
+> **Note on defaults:** the ASR language defaults to Arabic — this reflects the project's current target users. Override `GROQ_ASR_LANGUAGE` for other languages. The default TTS voice is now Egyptian-dialect (`EgyptianTTSProvider`, real-mode default in `create_app()`); `GroqTTSProvider`'s Saudi voice remains in the codebase as an alternate implementation of the same `TTSProvider` interface but isn't used by default.
+
+### Enabling accurate Egyptian currency detection (optional, free)
+
+Money Mode and voice currency questions work out of the box via the general VLM, but for the specialist detector's higher accuracy:
+
+1. Create a free account at [roboflow.com](https://roboflow.com).
+2. Find or fork the Egyptian currency model (e.g. the Banha University project on Roboflow Universe) into your own workspace.
+3. Open its Deploy tab and use "Get curl command" to confirm the exact project slug, version number, and API key for your account.
+4. Set `ROBOFLOW_API_KEY` (and `ROBOFLOW_CURRENCY_PROJECT`/`ROBOFLOW_CURRENCY_VERSION` if they differ from the defaults above).
+
+Until this is done, `currency_detector` stays unconfigured and every currency question uses the general VLM — identical to the app's behavior before this feature existed.
 
 Never commit a `.env` file — it's already covered by `.gitignore`. On Vercel, set these as [project environment variables](https://vercel.com/docs/projects/environment-variables) (see [Deployment](#deployment)), not in `vercel.json`.
 
@@ -309,26 +353,34 @@ cd backend
 python3 -m pytest -v
 ```
 
-Expected output: **54 passed, 1 skipped**. The one skip is `tests/integration/test_real_mode_smoke.py`, which only runs when `RUN_REAL_GROQ_SMOKE_TESTS=true` and a real `GROQ_MULTIMODAL_MODEL` are set — it makes real Groq API calls and isn't part of the default fast, deterministic suite.
+Expected output: **110 passed, 1 skipped**. The one skip is `tests/integration/test_real_mode_smoke.py`, which only runs when `RUN_REAL_GROQ_SMOKE_TESTS=true` and a real `GROQ_MULTIMODAL_MODEL` are set — it makes real Groq API calls and isn't part of the default fast, deterministic suite.
 
 ### Test Structure
 
 ```
 backend/tests/
 ├── unit/
-│   ├── test_common_schemas.py       # ConversationTurn, ConversationDebug, ConversationResponse
-│   ├── test_config.py               # Settings loading, .env parsing
-│   ├── test_conversation_request.py # Request schema validation
-│   ├── test_conversation_service.py # Orchestration logic
-│   ├── test_fake_providers.py       # Deterministic fake provider behavior
-│   ├── test_groq_providers.py       # Real provider request-building (mocked client)
-│   ├── test_intent_router.py        # Provider-selection routing rules
-│   ├── test_main.py                 # App factory, CORS middleware registration
-│   ├── test_prompts.py              # Prompt template loading/overrides
-│   ├── test_provider_base.py        # Abstract interfaces are truly abstract
-│   └── test_session_store.py        # Conversation history isolation per session
+│   ├── test_common_schemas.py             # ConversationTurn, ConversationDebug, ConversationResponse, VisionTask
+│   ├── test_product_schemas.py            # ProductInfo, ProductLookupRequest/Response (incl. barcode validation)
+│   ├── test_currency_schemas.py           # CurrencyDetectionResult, CurrencyLookupRequest/Response
+│   ├── test_config.py                     # Settings loading, .env parsing
+│   ├── test_conversation_request.py       # Request schema validation
+│   ├── test_conversation_service.py       # Orchestration logic incl. currency-detector fallback
+│   ├── test_currency_lookup_service.py    # Money Mode's fast currency-lookup path
+│   ├── test_fake_providers.py             # Deterministic fake provider behavior
+│   ├── test_groq_providers.py             # Real provider request-building (mocked client)
+│   ├── test_egyptian_tts_provider.py      # Egyptian TTS provider (fake Gradio client)
+│   ├── test_roboflow_currency_provider.py # Roboflow currency provider (fake httpx transport)
+│   ├── test_openfoodfacts_provider.py     # Open Food Facts provider (fake httpx transport)
+│   ├── test_intent_router.py              # Provider-selection routing rules (EN+AR)
+│   ├── test_main.py                       # App factory, route registration, CORS middleware
+│   ├── test_prompts.py                    # Prompt template loading/overrides
+│   ├── test_provider_base.py              # Abstract interfaces are truly abstract
+│   └── test_session_store.py              # Conversation history isolation per session
 └── integration/
     ├── test_conversation_api.py     # Full endpoint tests with fake providers
+    ├── test_product_api.py          # /product-lookup endpoint tests
+    ├── test_currency_api.py         # /currency-lookup endpoint tests
     └── test_real_mode_smoke.py      # Real Groq smoke test (env-gated, skipped by default)
 ```
 
@@ -345,7 +397,7 @@ def test_intent_router_adds_ocr_for_text_requests():
     assert "ocr" in result
 ```
 
-Mobile tests run via `flutter test` from `mobile/` (20 tests, all passing) and cover `ConversationState`, `BackendClient`, `MediaCaptureService`, `AudioPlaybackService`, and the conversation screen's semantics, using fake implementations of each service. `flutter analyze` is clean with no issues.
+Mobile tests run via `flutter test` from `mobile/` (28 tests, all passing) and cover `ConversationState` (including Money Mode, barcode lookup, and the on-device TTS fallback), `BackendClient`, `MediaCaptureService`, `AudioPlaybackService`, response models, and the conversation screen's semantics, using fake implementations of each service. `flutter analyze` is clean with no issues.
 
 ## Deployment
 
@@ -374,6 +426,8 @@ vercel env add GROQ_API_KEY production
 vercel env add GROQ_MULTIMODAL_MODEL production
 # enter your chosen Groq vision model ID
 ```
+
+`EGYPTIAN_TTS_SPACE_ID` and `ROBOFLOW_API_KEY` are optional — both have sensible defaults/fallbacks (see [Environment Variables](#environment-variables)) and don't need to be set for the app to work.
 
 Verify:
 
