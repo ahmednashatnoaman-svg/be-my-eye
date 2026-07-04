@@ -67,6 +67,13 @@ class ConversationState extends ChangeNotifier {
   /// step (or each other) already recorded -- see [startAudioRecording] and
   /// [stopAudioRecording].
   Future<void> captureImage() async {
+    // Guards against a new gesture starting while a previous submit() is
+    // still awaiting its network response: without this, this reset could
+    // run mid-flight, and the earlier submit()'s eventual result would
+    // overwrite this turn's fresh state once it resolves -- silently
+    // replacing the current answer with a stale one, or playing two
+    // overlapping audio responses.
+    if (_isBusy) return;
     _lastError = null;
     _lastResponse = null;
     try {
@@ -159,6 +166,7 @@ class ConversationState extends ChangeNotifier {
   }
 
   Future<void> captureAndLookupCurrency() async {
+    if (_isBusy) return;
     _lastError = null;
     _lastResponse = null;
     notifyListeners();
@@ -204,6 +212,7 @@ class ConversationState extends ChangeNotifier {
   }
 
   Future<void> lookupProductByBarcode(String barcode) async {
+    if (_isBusy) return;
     _lastError = null;
     _lastResponse = null;
     _isBusy = true;

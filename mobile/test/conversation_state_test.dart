@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:camera/camera.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -7,6 +9,19 @@ import 'package:be_my_eye/features/conversation/conversation_state.dart';
 import 'package:be_my_eye/features/conversation/media_services.dart';
 import 'package:be_my_eye/features/conversation/models.dart';
 import 'package:be_my_eye/features/conversation/os_tts_fallback.dart';
+
+/// Never resolves sendConversation until completeWith() is called, so tests
+/// can assert on state while a request is deliberately still in flight.
+class SlowBackendClient extends BackendClient {
+  SlowBackendClient() : super(baseUrl: 'http://localhost');
+
+  final Completer<ConversationResponse> _completer = Completer<ConversationResponse>();
+
+  void completeWith(ConversationResponse response) => _completer.complete(response);
+
+  @override
+  Future<ConversationResponse> sendConversation(ConversationRequest request) => _completer.future;
+}
 
 class FakeBackendClient extends BackendClient {
   FakeBackendClient() : super(baseUrl: 'http://localhost');
@@ -571,5 +586,34 @@ void main() {
 
     expect(mediaCaptureService.disposeAudioRecorderCalled, isTrue);
     expect(audioPlaybackService.disposeCalled, isTrue);
+  });
+
+  test('a new gesture is ignored while a previous submit is still in flight', () async {
+    final backendClient = SlowBackendClient();
+    final mediaCaptureService = FakeMediaCaptureService();
+    final state = ConversationState(
+      backendClient: backendClient,
+      mediaCaptureService: mediaCaptureService,
+      audioPlaybackService: FakeAudioPlaybackService(),
+      osTtsFallbackService: FakeOsTtsFallbackService(),
+    );
+
+    await state.captureImage();
+    await state.startAudioRecording();
+    await state.stopAudioRecording();
+    final submitFuture = state.submit(sessionId: 'session-race');
+
+    expect(state.isBusy, isTrue);
+    mediaCaptureService.captureImageCalled = false;
+    await state.captureImage();
+    expect(mediaCaptureService.captureImageCalled, isFalse);
+
+    backendClient.completeWith(
+      ConversationResponse(sessionId: 'session-race', text: 'answer', transcript: 't', audioBase64: 'a'),
+    );
+    await submitFuture;
+
+    expect(state.isBusy, isFalse);
+    expect(state.lastResponse?.text, 'answer');
   });
 }
