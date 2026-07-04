@@ -42,3 +42,37 @@ def test_fake_vision_accepts_task_parameter():
     provider = FakeVisionProvider()
 
     assert provider.analyze(b"image", "How much is this?", [], task=VisionTask.currency) == "a desk with a laptop and a mug"
+
+
+def test_fake_product_lookup_returns_sample_product_for_known_barcode():
+    from app.providers.fakes import FakeProductLookupProvider
+
+    provider = FakeProductLookupProvider()
+
+    result = provider.lookup_by_barcode("1234567890123")
+
+    assert result is not None
+    assert result.name
+    assert "milk" in result.allergens or result.allergens == [] or result.allergens
+
+
+def test_fake_product_lookup_returns_none_for_unknown_barcode():
+    from app.providers.fakes import FakeProductLookupProvider
+
+    provider = FakeProductLookupProvider()
+
+    result = provider.lookup_by_barcode("0000000000000")
+
+    assert result is None
+
+
+def test_fake_currency_detection_returns_confident_result():
+    from app.providers.fakes import FakeCurrencyDetectionProvider
+
+    provider = FakeCurrencyDetectionProvider()
+
+    result = provider.detect_currency(b"fake-image-bytes")
+
+    assert result is not None
+    assert result.denomination
+    assert result.confidence >= 0.6

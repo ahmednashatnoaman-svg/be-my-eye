@@ -5,11 +5,14 @@ import 'package:be_my_eye/features/conversation/backend_client.dart';
 import 'package:be_my_eye/features/conversation/conversation_state.dart';
 import 'package:be_my_eye/features/conversation/media_services.dart';
 import 'package:be_my_eye/features/conversation/models.dart';
+import 'package:be_my_eye/features/conversation/os_tts_fallback.dart';
 
 class FakeBackendClient extends BackendClient {
   FakeBackendClient() : super(baseUrl: 'http://localhost');
 
   ConversationRequest? lastRequest;
+  String? lastCurrencyImageBase64;
+  String? lastBarcode;
 
   @override
   Future<ConversationResponse> sendConversation(ConversationRequest request) async {
@@ -18,6 +21,34 @@ class FakeBackendClient extends BackendClient {
       sessionId: request.sessionId,
       text: 'assistant reply',
       audioBase64: 'response-audio',
+    );
+  }
+
+  @override
+  Future<CurrencyLookupResponse> lookupCurrency(String imageBase64) async {
+    lastCurrencyImageBase64 = imageBase64;
+    return CurrencyLookupResponse(
+      found: true,
+      denomination: '20 EGP',
+      confidence: 0.92,
+      spokenText: 'This looks like 20 EGP.',
+      audioBase64: 'currency-audio',
+    );
+  }
+
+  @override
+  Future<ProductLookupResponse> lookupProduct(String barcode) async {
+    lastBarcode = barcode;
+    if (barcode == '0000000000000') {
+      return ProductLookupResponse(found: false, product: null);
+    }
+    return ProductLookupResponse(
+      found: true,
+      product: ProductInfo(
+        name: 'Sample Product',
+        brand: 'Sample Brand',
+        allergens: const ['milk'],
+      ),
     );
   }
 }
@@ -51,6 +82,15 @@ class FakeAudioPlaybackService implements AudioPlaybackService {
   @override
   Future<void> playBase64Audio(String audioBase64) async {
     playedAudioBase64 = audioBase64;
+  }
+}
+
+class FakeOsTtsFallbackService implements OsTtsFallbackService {
+  String? spokenText;
+
+  @override
+  Future<void> speak(String text) async {
+    spokenText = text;
   }
 }
 
@@ -91,6 +131,7 @@ void main() {
       backendClient: backendClient,
       mediaCaptureService: FakeMediaCaptureService(),
       audioPlaybackService: FakeAudioPlaybackService(),
+      osTtsFallbackService: FakeOsTtsFallbackService(),
     );
 
     await state.submit(sessionId: 'session-empty');
@@ -107,6 +148,7 @@ void main() {
       backendClient: backendClient,
       mediaCaptureService: mediaCaptureService,
       audioPlaybackService: audioPlaybackService,
+      osTtsFallbackService: FakeOsTtsFallbackService(),
       debug: true,
     );
 
@@ -127,6 +169,7 @@ void main() {
       backendClient: backendClient,
       mediaCaptureService: mediaCaptureService,
       audioPlaybackService: audioPlaybackService,
+      osTtsFallbackService: FakeOsTtsFallbackService(),
     );
 
     await state.captureImage();
@@ -149,6 +192,7 @@ void main() {
       backendClient: backendClient,
       mediaCaptureService: mediaCaptureService,
       audioPlaybackService: audioPlaybackService,
+      osTtsFallbackService: FakeOsTtsFallbackService(),
     );
 
     state.loadDemoCapture();
@@ -164,6 +208,7 @@ void main() {
       backendClient: backendClient,
       mediaCaptureService: ThrowingMediaCaptureService(),
       audioPlaybackService: FakeAudioPlaybackService(),
+      osTtsFallbackService: FakeOsTtsFallbackService(),
     );
 
     await state.captureImage();
@@ -177,6 +222,7 @@ void main() {
       backendClient: backendClient,
       mediaCaptureService: ThrowingMediaCaptureService(),
       audioPlaybackService: FakeAudioPlaybackService(),
+      osTtsFallbackService: FakeOsTtsFallbackService(),
     );
 
     await state.stopAudioRecording();
@@ -190,6 +236,7 @@ void main() {
       backendClient: backendClient,
       mediaCaptureService: CameraFailsButMicWorksMediaCaptureService(),
       audioPlaybackService: FakeAudioPlaybackService(),
+      osTtsFallbackService: FakeOsTtsFallbackService(),
     );
 
     await state.captureImage();
@@ -207,6 +254,7 @@ void main() {
       backendClient: backendClient,
       mediaCaptureService: mediaCaptureService,
       audioPlaybackService: audioPlaybackService,
+      osTtsFallbackService: FakeOsTtsFallbackService(),
     );
 
     state.loadDemoCapture();
@@ -216,5 +264,73 @@ void main() {
     await state.captureImage();
 
     expect(state.lastResponse, isNull);
+  });
+
+  test('ConversationState speaks locally when tts_fallback_required is true', () async {
+    final backendClient = FakeBackendClient();
+    final audioPlaybackService = FakeAudioPlaybackService();
+    final osTtsFallbackService = FakeOsTtsFallbackService();
+    final state = ConversationState(
+      backendClient: backendClient,
+      mediaCaptureService: FakeMediaCaptureService(),
+      audioPlaybackService: audioPlaybackService,
+      osTtsFallbackService: osTtsFallbackService,
+    );
+
+    state.debugSetResponseForTest('the answer', ttsFallbackRequired: true);
+    await state.playLastResponse();
+
+    expect(osTtsFallbackService.spokenText, 'the answer');
+    expect(audioPlaybackService.playedAudioBase64, isNull);
+  });
+
+  test('ConversationState captures a photo and looks up currency', () async {
+    final backendClient = FakeBackendClient();
+    final mediaCaptureService = FakeMediaCaptureService();
+    final audioPlaybackService = FakeAudioPlaybackService();
+    final state = ConversationState(
+      backendClient: backendClient,
+      mediaCaptureService: mediaCaptureService,
+      audioPlaybackService: audioPlaybackService,
+      osTtsFallbackService: FakeOsTtsFallbackService(),
+    );
+
+    await state.captureAndLookupCurrency();
+
+    expect(mediaCaptureService.captureImageCalled, isTrue);
+    expect(backendClient.lastCurrencyImageBase64, 'captured-image');
+    expect(state.lastResponse?.text, 'This looks like 20 EGP.');
+    expect(audioPlaybackService.playedAudioBase64, 'currency-audio');
+  });
+
+  test('ConversationState looks up a product by barcode and describes it', () async {
+    final backendClient = FakeBackendClient();
+    final state = ConversationState(
+      backendClient: backendClient,
+      mediaCaptureService: FakeMediaCaptureService(),
+      audioPlaybackService: FakeAudioPlaybackService(),
+      osTtsFallbackService: FakeOsTtsFallbackService(),
+    );
+
+    await state.lookupProductByBarcode('1234567890123');
+
+    expect(backendClient.lastBarcode, '1234567890123');
+    expect(state.lastResponse?.text, contains('Sample Product'));
+    expect(state.lastResponse?.text, contains('milk'));
+    expect(state.lastResponse?.ttsFallbackRequired, isTrue);
+  });
+
+  test('ConversationState reports when a barcode is not found', () async {
+    final backendClient = FakeBackendClient();
+    final state = ConversationState(
+      backendClient: backendClient,
+      mediaCaptureService: FakeMediaCaptureService(),
+      audioPlaybackService: FakeAudioPlaybackService(),
+      osTtsFallbackService: FakeOsTtsFallbackService(),
+    );
+
+    await state.lookupProductByBarcode('0000000000000');
+
+    expect(state.lastResponse?.text, contains("couldn't find"));
   });
 }

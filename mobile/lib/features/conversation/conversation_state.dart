@@ -5,20 +5,24 @@ import 'backend_client.dart';
 import 'demo_capture.dart';
 import 'media_services.dart';
 import 'models.dart';
+import 'os_tts_fallback.dart';
 
 class ConversationState extends ChangeNotifier {
   ConversationState({
     required BackendClient backendClient,
     required MediaCaptureService mediaCaptureService,
     required AudioPlaybackService audioPlaybackService,
+    required OsTtsFallbackService osTtsFallbackService,
     this.debug = false,
   })  : _backendClient = backendClient,
         _mediaCaptureService = mediaCaptureService,
-        _audioPlaybackService = audioPlaybackService;
+        _audioPlaybackService = audioPlaybackService,
+        _osTtsFallbackService = osTtsFallbackService;
 
   final BackendClient _backendClient;
   final MediaCaptureService _mediaCaptureService;
   final AudioPlaybackService _audioPlaybackService;
+  final OsTtsFallbackService _osTtsFallbackService;
   final bool debug;
 
   String? _capturedImageBase64;
@@ -104,23 +108,102 @@ class ConversationState extends ChangeNotifier {
     }
   }
 
+  Future<void> captureAndLookupCurrency() async {
+    _lastError = null;
+    _lastResponse = null;
+    notifyListeners();
+
+    final String imageBase64;
+    try {
+      imageBase64 = await _mediaCaptureService.captureImageBase64();
+    } catch (error) {
+      _lastError = 'Could not access the camera: $error';
+      notifyListeners();
+      return;
+    }
+
+    _isBusy = true;
+    notifyListeners();
+
+    try {
+      final result = await _backendClient.lookupCurrency(imageBase64);
+      _lastResponse = ConversationResponse(
+        sessionId: 'money-mode',
+        text: result.spokenText,
+        audioBase64: result.audioBase64,
+        ttsFallbackRequired: result.ttsFallbackRequired,
+      );
+      _lastError = null;
+    } catch (error) {
+      _lastError = error.toString();
+    } finally {
+      _isBusy = false;
+      notifyListeners();
+    }
+
+    await playLastResponse();
+  }
+
+  Future<void> lookupProductByBarcode(String barcode) async {
+    _lastError = null;
+    _lastResponse = null;
+    _isBusy = true;
+    notifyListeners();
+
+    try {
+      final result = await _backendClient.lookupProduct(barcode);
+      final text = result.found ? _describeProduct(result.product!) : "I couldn't find a product for this barcode.";
+      _lastResponse = ConversationResponse(
+        sessionId: 'barcode-mode',
+        text: text,
+        audioBase64: '',
+        ttsFallbackRequired: true,
+      );
+      _lastError = null;
+    } catch (error) {
+      _lastError = error.toString();
+    } finally {
+      _isBusy = false;
+      notifyListeners();
+    }
+
+    await playLastResponse();
+  }
+
+  String _describeProduct(ProductInfo product) {
+    final buffer = StringBuffer('This is ${product.name}');
+    if (product.brand != null) {
+      buffer.write(' by ${product.brand}');
+    }
+    buffer.write('.');
+    if (product.allergens.isNotEmpty) {
+      buffer.write(' Contains: ${product.allergens.join(', ')}.');
+    }
+    return buffer.toString();
+  }
+
   Future<void> playLastResponse() async {
     final response = _lastResponse;
     if (response == null) {
       return;
     }
-    await _audioPlaybackService.playBase64Audio(response.audioBase64);
+    if (response.ttsFallbackRequired) {
+      await _osTtsFallbackService.speak(response.text);
+    } else {
+      await _audioPlaybackService.playBase64Audio(response.audioBase64);
+    }
   }
 
   /// Test-only helper: sets lastResponse directly, bypassing submit(), so
   /// widget tests can verify UI reacts to a completed response without
   /// needing a real or fake network round-trip.
   @visibleForTesting
-  void debugSetResponseForTest(String text) {
+  void debugSetResponseForTest(String text, {bool ttsFallbackRequired = false}) {
     _lastResponse = ConversationResponse(
       sessionId: 'test-session',
       text: text,
       audioBase64: 'test-audio',
+      ttsFallbackRequired: ttsFallbackRequired,
     );
     notifyListeners();
   }

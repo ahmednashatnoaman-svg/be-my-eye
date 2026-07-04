@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import 'barcode_scanner_screen.dart';
 import 'conversation_state.dart';
 
 const Color _kBackground = Color(0xFF12141A);
@@ -60,6 +61,15 @@ class _ConversationScreenState extends State<ConversationScreen> with SingleTick
     setState(() => _isListening = false);
   }
 
+  Future<void> _handleScanBarcode(ConversationState state) async {
+    final barcode = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
+    );
+    if (barcode != null) {
+      await state.lookupProductByBarcode(barcode);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<ConversationState>();
@@ -109,6 +119,30 @@ class _ConversationScreenState extends State<ConversationScreen> with SingleTick
               alignment: Alignment.center,
               children: [
                 if (_isListening) ..._buildPulseRings(),
+                Positioned(
+                  top: 48,
+                  left: 24,
+                  child: Semantics(
+                    button: true,
+                    label: 'Money',
+                    child: IconButton(
+                      icon: const Icon(Icons.attach_money, color: _kAccent, size: 32),
+                      onPressed: () => context.read<ConversationState>().captureAndLookupCurrency(),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 48,
+                  right: 24,
+                  child: Semantics(
+                    button: true,
+                    label: 'Scan barcode',
+                    child: IconButton(
+                      icon: const Icon(Icons.qr_code_scanner, color: _kAccent, size: 32),
+                      onPressed: () => _handleScanBarcode(state),
+                    ),
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.all(24),
                   child: Column(

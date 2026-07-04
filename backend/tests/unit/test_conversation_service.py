@@ -15,7 +15,7 @@ from app.services.intent_router import IntentRouter
 from app.services.session_store import InMemorySessionStore
 
 
-def make_service() -> ConversationService:
+def make_service(currency_detector=None) -> ConversationService:
     return ConversationService(
         asr=FakeASRProvider(),
         vision=FakeVisionProvider(),
@@ -25,6 +25,7 @@ def make_service() -> ConversationService:
         grounding=FakeGroundingProvider(),
         session_store=InMemorySessionStore(),
         router=IntentRouter(),
+        currency_detector=currency_detector,
     )
 
 
@@ -150,3 +151,100 @@ def test_conversation_service_prefers_request_supplied_history():
 
     assert response.session_id == "session-without-store-entry"
     assert spy_llm.received_history == request_history
+
+
+def test_conversation_service_sets_fallback_flag_when_tts_unavailable():
+    from app.providers.fakes import FakeFailingTTSProvider
+
+    service = ConversationService(
+        asr=FakeASRProvider(),
+        vision=FakeVisionProvider(),
+        ocr=FakeOCRProvider(),
+        llm=FakeLLMProvider(),
+        tts=FakeFailingTTSProvider(),
+        grounding=FakeGroundingProvider(),
+        session_store=InMemorySessionStore(),
+        router=IntentRouter(),
+    )
+    request = ConversationRequest(
+        session_id="session-1",
+        image_base64=base64.b64encode(b"image-bytes").decode("ascii"),
+        audio_base64=base64.b64encode(b"What is in front of me?").decode("ascii"),
+    )
+
+    response = service.handle(request)
+
+    assert response.tts_fallback_required is True
+    assert response.audio_base64 == ""
+    assert response.text  # the text answer must still be present
+
+
+def test_conversation_service_uses_currency_detector_when_confident():
+    from app.providers.fakes import FakeCurrencyDetectionProvider
+
+    service = make_service(currency_detector=FakeCurrencyDetectionProvider())
+    request = ConversationRequest(
+        session_id="session-1",
+        image_base64=base64.b64encode(b"image-bytes").decode("ascii"),
+        audio_base64=base64.b64encode(b"How much money is this?").decode("ascii"),
+        debug=True,
+    )
+
+    response = service.handle(request)
+
+    assert response.debug.selected_providers == ["currency_detector"]
+    assert "20 EGP" in response.debug.vision_summary
+
+
+def test_conversation_service_falls_back_to_vlm_when_currency_detector_returns_none():
+    class NoneReturningCurrencyDetector:
+        def detect_currency(self, image_bytes: bytes):
+            return None
+
+    service = make_service(currency_detector=NoneReturningCurrencyDetector())
+    request = ConversationRequest(
+        session_id="session-1",
+        image_base64=base64.b64encode(b"image-bytes").decode("ascii"),
+        audio_base64=base64.b64encode(b"How much money is this?").decode("ascii"),
+        debug=True,
+    )
+
+    response = service.handle(request)
+
+    assert response.debug.selected_providers == ["vision"]
+
+
+def test_conversation_service_falls_back_to_vlm_when_currency_detector_unconfident():
+    from app.schemas.currency import CurrencyDetectionResult
+
+    class LowConfidenceCurrencyDetector:
+        def detect_currency(self, image_bytes: bytes):
+            return CurrencyDetectionResult(denomination="10 EGP", confidence=0.2)
+
+    service = make_service(currency_detector=LowConfidenceCurrencyDetector())
+    request = ConversationRequest(
+        session_id="session-1",
+        image_base64=base64.b64encode(b"image-bytes").decode("ascii"),
+        audio_base64=base64.b64encode(b"How much money is this?").decode("ascii"),
+        debug=True,
+    )
+
+    response = service.handle(request)
+
+    assert response.debug.selected_providers == ["vision"]
+
+
+def test_conversation_service_ignores_currency_detector_for_non_currency_tasks():
+    from app.providers.fakes import FakeCurrencyDetectionProvider
+
+    service = make_service(currency_detector=FakeCurrencyDetectionProvider())
+    request = ConversationRequest(
+        session_id="session-1",
+        image_base64=base64.b64encode(b"image-bytes").decode("ascii"),
+        audio_base64=base64.b64encode(b"What is in front of me?").decode("ascii"),
+        debug=True,
+    )
+
+    response = service.handle(request)
+
+    assert response.debug.selected_providers == ["vision"]

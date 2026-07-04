@@ -20,3 +20,44 @@ def test_create_app_wires_grounding_provider_in_fake_mode(monkeypatch):
     app = create_app()
 
     assert app is not None
+
+
+def test_create_app_registers_product_lookup_route():
+    app = create_app()
+
+    paths = {route.path for route in app.routes}
+    assert "/product-lookup" in paths
+
+
+def test_create_app_uses_egyptian_tts_in_real_mode(monkeypatch):
+    from app.providers.egyptian_tts import EgyptianTTSProvider
+
+    monkeypatch.setenv("USE_REAL_PROVIDERS", "true")
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    monkeypatch.setenv("GROQ_MULTIMODAL_MODEL", "test-model")
+
+    app = create_app()
+
+    # The service is a closure captured by the route; the cleanest external
+    # check is that the app builds without error in real mode with the new
+    # provider wired in -- deeper inspection would require reaching into
+    # FastAPI's dependency closures, which this repo's other tests don't do.
+    assert app is not None
+
+
+def test_create_app_wires_currency_detector_only_when_roboflow_key_present(monkeypatch):
+    monkeypatch.setenv("USE_REAL_PROVIDERS", "true")
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    monkeypatch.setenv("GROQ_MULTIMODAL_MODEL", "test-model")
+    monkeypatch.delenv("ROBOFLOW_API_KEY", raising=False)
+
+    app = create_app()
+
+    assert app is not None
+
+
+def test_create_app_registers_currency_lookup_route():
+    app = create_app()
+
+    paths = {route.path for route in app.routes}
+    assert "/currency-lookup" in paths

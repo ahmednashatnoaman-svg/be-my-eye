@@ -11,6 +11,11 @@ class VisionTask(str, Enum):
     currency = "currency"
     color = "color"
     product = "product"
+    food = "food"
+    people = "people"
+    environment = "environment"
+    clothing = "clothing"
+    label = "label"
 
 
 class ConversationTurn(BaseModel):
@@ -31,7 +36,8 @@ class ConversationDebug(BaseModel):
 class ConversationResponse(BaseModel):
     session_id: str = Field(min_length=1)
     text: str = Field(min_length=1)
-    audio_base64: str = Field(min_length=1)
+    audio_base64: str = ""
+    tts_fallback_required: bool = False
     debug: ConversationDebug | None = None
 
 

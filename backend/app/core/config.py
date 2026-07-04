@@ -39,6 +39,10 @@ class Settings:
     groq_tts_model: str = "canopylabs/orpheus-arabic-saudi"
     groq_tts_voice: str = "abdullah"
     groq_asr_language: str = "ar"
+    egyptian_tts_space_id: str = "omarelshehy/NAMAA-Egyptian-Voice"
+    roboflow_api_key: str = ""
+    roboflow_currency_project: str = "egyptian-currency-psnkr"
+    roboflow_currency_version: str = "1"
 
 
 def get_settings() -> Settings:
@@ -55,4 +59,8 @@ def get_settings() -> Settings:
         groq_tts_model=os.getenv("GROQ_TTS_MODEL", "canopylabs/orpheus-arabic-saudi"),
         groq_tts_voice=os.getenv("GROQ_TTS_VOICE", "abdullah"),
         groq_asr_language=os.getenv("GROQ_ASR_LANGUAGE", "ar"),
+        egyptian_tts_space_id=os.getenv("EGYPTIAN_TTS_SPACE_ID", "omarelshehy/NAMAA-Egyptian-Voice"),
+        roboflow_api_key=os.getenv("ROBOFLOW_API_KEY", ""),
+        roboflow_currency_project=os.getenv("ROBOFLOW_CURRENCY_PROJECT", "egyptian-currency-psnkr"),
+        roboflow_currency_version=os.getenv("ROBOFLOW_CURRENCY_VERSION", "1"),
     )

@@ -3,9 +3,19 @@ from __future__ import annotations
 import base64
 from dataclasses import dataclass
 
-from app.providers.base import ASRProvider, GroundingProvider, LLMProvider, OCRProvider, TTSProvider, VisionProvider
-from app.schemas.common import ConversationDebug, ConversationResponse, ConversationTurn
+from app.providers.base import (
+    ASRProvider,
+    CurrencyDetectionProvider,
+    GroundingProvider,
+    LLMProvider,
+    OCRProvider,
+    TTSProvider,
+    TTSUnavailableError,
+    VisionProvider,
+)
+from app.schemas.common import ConversationDebug, ConversationResponse, ConversationTurn, VisionTask
 from app.schemas.conversation import ConversationRequest
+from app.schemas.currency import CurrencyDetectionResult
 from app.services.intent_router import IntentRouter
 from app.services.session_store import InMemorySessionStore
 
@@ -24,6 +34,9 @@ class ConversationService:
     grounding: GroundingProvider
     session_store: InMemorySessionStore
     router: IntentRouter
+    currency_detector: CurrencyDetectionProvider | None = None
+
+    CURRENCY_CONFIDENCE_THRESHOLD = 0.6
 
     def handle(self, request: ConversationRequest) -> ConversationResponse:
         audio_bytes = self._decode_base64(request.audio_base64, "audio_base64")
@@ -33,7 +46,20 @@ class ConversationService:
         history = request.history or self.session_store.get_history(request.session_id)
         decision = self.router.route(transcript)
 
-        vision_summary = self.vision.analyze(image_bytes, transcript, history, task=decision.vision_task)
+        currency_result: CurrencyDetectionResult | None = None
+        if decision.vision_task == VisionTask.currency and self.currency_detector is not None:
+            currency_result = self.currency_detector.detect_currency(image_bytes)
+
+        used_currency_detector = (
+            currency_result is not None and currency_result.confidence >= self.CURRENCY_CONFIDENCE_THRESHOLD
+        )
+        if used_currency_detector:
+            vision_summary = (
+                f"Detected currency: {currency_result.denomination} "
+                f"(confidence {currency_result.confidence:.0%})"
+            )
+        else:
+            vision_summary = self.vision.analyze(image_bytes, transcript, history, task=decision.vision_task)
 
         ocr_text = None
         if decision.use_ocr:
@@ -43,7 +69,7 @@ class ConversationService:
         if decision.grounding_query:
             grounding_result = self.grounding.locate_object(image_bytes, decision.grounding_query, history)
 
-        selected_providers = ["vision"]
+        selected_providers = ["currency_detector"] if used_currency_detector else ["vision"]
         if decision.use_ocr:
             selected_providers.append("ocr")
         if grounding_result is not None:
@@ -52,7 +78,12 @@ class ConversationService:
         response_text = self.llm.generate_response(
             transcript, vision_summary, ocr_text, history, grounding_result=grounding_result
         )
-        speech_bytes = self.tts.synthesize_speech(response_text)
+        tts_fallback_required = False
+        try:
+            speech_bytes = self.tts.synthesize_speech(response_text)
+        except TTSUnavailableError:
+            speech_bytes = b""
+            tts_fallback_required = True
 
         self.session_store.append_turn(
             request.session_id,
@@ -74,6 +105,7 @@ class ConversationService:
             session_id=request.session_id,
             text=response_text,
             audio_base64=base64.b64encode(speech_bytes).decode("ascii"),
+            tts_fallback_required=tts_fallback_required,
             debug=debug,
         )
 

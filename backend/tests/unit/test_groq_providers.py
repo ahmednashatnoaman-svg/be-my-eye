@@ -70,6 +70,11 @@ PROMPTS = PromptConfig(
     currency_instruction="currency instruction",
     color_instruction="color instruction",
     product_instruction="product instruction",
+    food_instruction="food instruction",
+    people_instruction="people instruction",
+    environment_instruction="environment instruction",
+    clothing_instruction="clothing instruction",
+    label_instruction="label instruction",
 )
 
 
@@ -160,3 +165,15 @@ def test_groq_vision_provider_defaults_to_scene_instruction():
     prompt = client.chat.completions.calls[0]["messages"][0]["content"]
     prompt_text = " ".join(part.get("text", "") for part in prompt if isinstance(part, dict))
     assert "vision instruction" in prompt_text
+
+
+def test_groq_vision_provider_selects_food_instruction():
+    client = FakeGroqClient()
+    provider = GroqVisionProvider(model="qwen-model", prompts=PROMPTS, client=client)
+
+    provider.analyze(make_image_bytes(), "What am I eating?", [], task=VisionTask.food)
+
+    prompt = client.chat.completions.calls[0]["messages"][0]["content"]
+    prompt_text = " ".join(part.get("text", "") for part in prompt if isinstance(part, dict))
+    assert "food instruction" in prompt_text
+    assert "vision instruction" not in prompt_text
