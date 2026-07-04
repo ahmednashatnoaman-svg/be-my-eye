@@ -47,6 +47,9 @@ class FakeBackendClient extends BackendClient {
     if (barcode == '0000000000000') {
       return ProductLookupResponse(found: false, product: null);
     }
+    if (barcode == '9999999999999') {
+      return ProductLookupResponse(found: false, product: null, serviceError: true);
+    }
     return ProductLookupResponse(
       found: true,
       product: ProductInfo(
@@ -502,6 +505,21 @@ void main() {
     await state.lookupProductByBarcode('0000000000000');
 
     expect(state.lastResponse?.text, contains('مقدرتش ألاقي'));
+  });
+
+  test('ConversationState reports a service error distinctly from not-found', () async {
+    final backendClient = FakeBackendClient();
+    final state = ConversationState(
+      backendClient: backendClient,
+      mediaCaptureService: FakeMediaCaptureService(),
+      audioPlaybackService: FakeAudioPlaybackService(),
+      osTtsFallbackService: FakeOsTtsFallbackService(),
+    );
+
+    await state.lookupProductByBarcode('9999999999999');
+
+    expect(state.lastResponse?.text, isNot(contains('مقدرتش ألاقي')));
+    expect(state.lastResponse?.text, contains('مش متاحة'));
   });
 
   test('disposing ConversationState releases the camera', () {

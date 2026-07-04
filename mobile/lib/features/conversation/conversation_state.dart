@@ -211,7 +211,17 @@ class ConversationState extends ChangeNotifier {
 
     try {
       final result = await _backendClient.lookupProduct(barcode);
-      final text = result.found ? _describeProduct(result.product!) : "مقدرتش ألاقي منتج للباركود ده.";
+      final String text;
+      if (result.serviceError) {
+        // Distinct from "not found": the backend couldn't reach the
+        // lookup service at all, so this barcode may well be a real
+        // product -- don't imply otherwise.
+        text = 'خدمة البحث عن المنتجات مش متاحة دلوقتي، جرب تاني بعد شوية.';
+      } else if (result.found) {
+        text = _describeProduct(result.product!);
+      } else {
+        text = 'مقدرتش ألاقي منتج للباركود ده.';
+      }
       _lastResponse = ConversationResponse(
         sessionId: 'barcode-mode',
         text: text,

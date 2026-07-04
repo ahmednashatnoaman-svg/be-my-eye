@@ -147,10 +147,11 @@ class ProductInfo {
 }
 
 class ProductLookupResponse {
-  ProductLookupResponse({required this.found, this.product});
+  ProductLookupResponse({required this.found, this.product, this.serviceError = false});
 
   final bool found;
   final ProductInfo? product;
+  final bool serviceError;
 
   factory ProductLookupResponse.fromJson(Map<String, dynamic> json) {
     return ProductLookupResponse(
@@ -158,6 +159,7 @@ class ProductLookupResponse {
       product: json['product'] != null
           ? ProductInfo.fromJson(json['product'] as Map<String, dynamic>)
           : null,
+      serviceError: json['service_error'] as bool? ?? false,
     );
   }
 }
