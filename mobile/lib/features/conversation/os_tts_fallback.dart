@@ -13,6 +13,9 @@ class FlutterOsTtsFallbackService implements OsTtsFallbackService {
     // generic/MSA Arabic voice, so the fallback voice doesn't sound like an
     // abrupt switch away from the cloud Egyptian TTS voice.
     _tts.setLanguage('ar-EG');
+    // Slower than the platform default (~0.5 on iOS) so the fallback voice
+    // is easier to follow, matching the slowed-down cloud voice speed.
+    _tts.setSpeechRate(0.42);
   }
 
   final FlutterTts _tts;
