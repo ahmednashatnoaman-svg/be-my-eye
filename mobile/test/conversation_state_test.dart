@@ -128,6 +128,15 @@ class CameraFailsButMicWorksMediaCaptureService implements MediaCaptureService {
   }
 }
 
+class ThrowingBackendClient extends BackendClient {
+  ThrowingBackendClient() : super(baseUrl: 'http://localhost');
+
+  @override
+  Future<ConversationResponse> sendConversation(ConversationRequest request) async {
+    throw BackendException('Backend returned 500: something went wrong');
+  }
+}
+
 void main() {
   test('ConversationState rejects send attempts without captures', () async {
     final backendClient = FakeBackendClient();
@@ -250,6 +259,48 @@ void main() {
     expect(state.lastError, contains('Could not access the camera'));
   });
 
+  test('submit speaks a friendly error instead of staying silent when capture failed', () async {
+    final backendClient = FakeBackendClient();
+    final osTtsFallbackService = FakeOsTtsFallbackService();
+    final state = ConversationState(
+      backendClient: backendClient,
+      mediaCaptureService: ThrowingMediaCaptureService(),
+      audioPlaybackService: FakeAudioPlaybackService(),
+      osTtsFallbackService: osTtsFallbackService,
+    );
+
+    await state.captureImage();
+    await state.startAudioRecording();
+    await state.stopAudioRecording();
+    await state.submit(sessionId: 'session-error');
+    await state.playLastResponse();
+
+    expect(state.lastResponse, isNotNull);
+    expect(state.lastResponse?.ttsFallbackRequired, isTrue);
+    expect(osTtsFallbackService.spokenText, isNotNull);
+    expect(backendClient.lastRequest, isNull);
+  });
+
+  test('submit speaks a friendly error instead of staying silent when the backend fails', () async {
+    final backendClient = ThrowingBackendClient();
+    final osTtsFallbackService = FakeOsTtsFallbackService();
+    final state = ConversationState(
+      backendClient: backendClient,
+      mediaCaptureService: FakeMediaCaptureService(),
+      audioPlaybackService: FakeAudioPlaybackService(),
+      osTtsFallbackService: osTtsFallbackService,
+    );
+
+    state.loadDemoCapture();
+    await state.submit(sessionId: 'session-error');
+    await state.playLastResponse();
+
+    expect(state.lastResponse, isNotNull);
+    expect(state.lastResponse?.ttsFallbackRequired, isTrue);
+    expect(osTtsFallbackService.spokenText, isNotNull);
+    expect(state.lastError, contains('BackendException'));
+  });
+
   test('starting a new gesture clears the previous turn\'s answer', () async {
     final backendClient = FakeBackendClient();
     final mediaCaptureService = FakeMediaCaptureService();
@@ -350,6 +401,23 @@ void main() {
     expect(backendClient.lastCurrencyImageBase64, 'captured-image');
     expect(state.lastResponse?.text, 'This looks like 20 EGP.');
     expect(audioPlaybackService.playedAudioBase64, 'currency-audio');
+  });
+
+  test('Money Mode speaks a friendly error instead of staying silent when the camera fails', () async {
+    final backendClient = FakeBackendClient();
+    final osTtsFallbackService = FakeOsTtsFallbackService();
+    final state = ConversationState(
+      backendClient: backendClient,
+      mediaCaptureService: ThrowingMediaCaptureService(),
+      audioPlaybackService: FakeAudioPlaybackService(),
+      osTtsFallbackService: osTtsFallbackService,
+    );
+
+    await state.captureAndLookupCurrency();
+
+    expect(state.lastResponse, isNotNull);
+    expect(state.lastResponse?.ttsFallbackRequired, isTrue);
+    expect(osTtsFallbackService.spokenText, isNotNull);
   });
 
   test('ConversationState looks up a product by barcode and describes it', () async {

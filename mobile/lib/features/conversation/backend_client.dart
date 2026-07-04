@@ -17,16 +17,25 @@ class BackendClient {
   BackendClient({required this.baseUrl, http.Client? httpClient})
       : _httpClient = httpClient ?? http.Client();
 
+  // Generous but bounded: the Egyptian TTS pipeline is genuinely slow
+  // (observed 15-90s in production, since the free Gradio Space can need to
+  // wake up from sleep and queue the request), but a request must still
+  // fail predictably rather than hang indefinitely -- an unbounded wait is
+  // exactly what silently produced "no response at all" for the user.
+  static const Duration _requestTimeout = Duration(seconds: 150);
+
   final String baseUrl;
   final http.Client _httpClient;
 
   Future<ConversationResponse> sendConversation(ConversationRequest request) async {
     final uri = Uri.parse('$baseUrl/conversation');
-    final response = await _httpClient.post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(request.toJson()),
-    );
+    final response = await _httpClient
+        .post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(request.toJson()),
+        )
+        .timeout(_requestTimeout);
 
     if (response.statusCode != 200) {
       throw BackendException(
@@ -41,11 +50,13 @@ class BackendClient {
 
   Future<CurrencyLookupResponse> lookupCurrency(String imageBase64) async {
     final uri = Uri.parse('$baseUrl/currency-lookup');
-    final response = await _httpClient.post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'image_base64': imageBase64}),
-    );
+    final response = await _httpClient
+        .post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'image_base64': imageBase64}),
+        )
+        .timeout(_requestTimeout);
 
     if (response.statusCode != 200) {
       throw BackendException(
@@ -60,11 +71,13 @@ class BackendClient {
 
   Future<ProductLookupResponse> lookupProduct(String barcode) async {
     final uri = Uri.parse('$baseUrl/product-lookup');
-    final response = await _httpClient.post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'barcode': barcode}),
-    );
+    final response = await _httpClient
+        .post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'barcode': barcode}),
+        )
+        .timeout(_requestTimeout);
 
     if (response.statusCode != 200) {
       throw BackendException(

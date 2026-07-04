@@ -77,12 +77,34 @@ class ConversationState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Every failure branch in this file must go through here rather than
+  /// setting `_lastResponse = null` on error: this is a voice-first app, so
+  /// leaving `_lastResponse` null on failure means playLastResponse() has
+  /// nothing to speak and the user hears total silence with no way to know
+  /// what happened. `spokenMessage` is what the user hears (Egyptian
+  /// Arabic, via the on-device fallback voice since there's no cloud audio
+  /// for a locally-detected failure); `technicalDetail` stays in
+  /// `_lastError` for the on-screen/debug text only.
+  void _failWith({required String sessionId, required String spokenMessage, required String technicalDetail}) {
+    _lastError = technicalDetail;
+    _lastResponse = ConversationResponse(
+      sessionId: sessionId,
+      text: spokenMessage,
+      audioBase64: '',
+      ttsFallbackRequired: true,
+    );
+  }
+
   Future<void> submit({required String sessionId}) async {
     final imageBase64 = _capturedImageBase64;
     final audioBase64 = _capturedAudioBase64;
 
-    if (imageBase64 == null || audioBase64 == null) {
-      _lastError ??= 'Capture an image and audio before sending.';
+    if (_lastError != null || imageBase64 == null || audioBase64 == null) {
+      _failWith(
+        sessionId: sessionId,
+        spokenMessage: 'معلش، حصلت مشكلة وأنا بحاول أسمعك أو أصورك. جرب تاني.',
+        technicalDetail: _lastError ?? 'Capture an image and audio before sending.',
+      );
       notifyListeners();
       return;
     }
@@ -107,7 +129,11 @@ class ConversationState extends ChangeNotifier {
         _history.add(ConversationTurn(userText: response.transcript, assistantText: response.text));
       }
     } catch (error) {
-      _lastError = error.toString();
+      _failWith(
+        sessionId: sessionId,
+        spokenMessage: 'معلش، حصلت مشكلة وأنا بحاول أجاوبك. جرب تاني.',
+        technicalDetail: error.toString(),
+      );
     } finally {
       _isBusy = false;
       notifyListeners();
@@ -123,8 +149,13 @@ class ConversationState extends ChangeNotifier {
     try {
       imageBase64 = await _mediaCaptureService.captureImageBase64();
     } catch (error) {
-      _lastError = 'Could not access the camera: $error';
+      _failWith(
+        sessionId: 'money-mode',
+        spokenMessage: 'معلش، مش قادر أوصل للكاميرا. جرب تاني.',
+        technicalDetail: 'Could not access the camera: $error',
+      );
       notifyListeners();
+      await playLastResponse();
       return;
     }
 
@@ -141,7 +172,11 @@ class ConversationState extends ChangeNotifier {
       );
       _lastError = null;
     } catch (error) {
-      _lastError = error.toString();
+      _failWith(
+        sessionId: 'money-mode',
+        spokenMessage: 'معلش، حصلت مشكلة وأنا بحاول أعرف الفئة. جرب تاني.',
+        technicalDetail: error.toString(),
+      );
     } finally {
       _isBusy = false;
       notifyListeners();
@@ -167,7 +202,11 @@ class ConversationState extends ChangeNotifier {
       );
       _lastError = null;
     } catch (error) {
-      _lastError = error.toString();
+      _failWith(
+        sessionId: 'barcode-mode',
+        spokenMessage: 'معلش، حصلت مشكلة وأنا بدور على المنتج ده. جرب تاني.',
+        technicalDetail: error.toString(),
+      );
     } finally {
       _isBusy = false;
       notifyListeners();
