@@ -169,6 +169,9 @@ def test_intent_router_selects_currency_task_for_reversed_colloquial_phrasing():
     assert router.route("ده كام؟").vision_task == VisionTask.currency
     assert router.route("دي كام؟").vision_task == VisionTask.currency
     assert router.route("دول كام؟").vision_task == VisionTask.currency
+    assert router.route("كام ده؟").vision_task == VisionTask.currency
+    assert router.route("كام دي؟").vision_task == VisionTask.currency
+    assert router.route("المبلغ ده كام؟").vision_task == VisionTask.currency
 
 
 def test_intent_router_selects_color_task_for_egyptian_colloquial_phrasing():

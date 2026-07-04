@@ -64,6 +64,9 @@ class IntentRouter:
         "دي كام",
         "دول كام",
         "بكم",
+        "كام ده",
+        "كام دي",
+        "المبلغ ده",
     )
     COLOR_KEYWORDS = (
         "color",
