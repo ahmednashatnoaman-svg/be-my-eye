@@ -66,6 +66,7 @@ class FakeMediaCaptureService implements MediaCaptureService {
   bool startAudioRecordingCalled = false;
   bool stopAudioRecordingCalled = false;
   bool disposeCameraCalled = false;
+  bool disposeAudioRecorderCalled = false;
 
   @override
   Future<String> captureImageBase64() async {
@@ -94,14 +95,25 @@ class FakeMediaCaptureService implements MediaCaptureService {
   Future<void> disposeCamera() async {
     disposeCameraCalled = true;
   }
+
+  @override
+  Future<void> disposeAudioRecorder() async {
+    disposeAudioRecorderCalled = true;
+  }
 }
 
 class FakeAudioPlaybackService implements AudioPlaybackService {
   String? playedAudioBase64;
+  bool disposeCalled = false;
 
   @override
   Future<void> playBase64Audio(String audioBase64) async {
     playedAudioBase64 = audioBase64;
+  }
+
+  @override
+  Future<void> dispose() async {
+    disposeCalled = true;
   }
 }
 
@@ -110,6 +122,9 @@ class ThrowingAudioPlaybackService implements AudioPlaybackService {
   Future<void> playBase64Audio(String audioBase64) async {
     throw StateError('empty or corrupt audio bytes');
   }
+
+  @override
+  Future<void> dispose() async {}
 }
 
 class FakeOsTtsFallbackService implements OsTtsFallbackService {
@@ -143,6 +158,9 @@ class ThrowingMediaCaptureService implements MediaCaptureService {
 
   @override
   Future<void> disposeCamera() async {}
+
+  @override
+  Future<void> disposeAudioRecorder() async {}
 }
 
 class CameraFailsButMicWorksMediaCaptureService implements MediaCaptureService {
@@ -167,6 +185,9 @@ class CameraFailsButMicWorksMediaCaptureService implements MediaCaptureService {
 
   @override
   Future<void> disposeCamera() async {}
+
+  @override
+  Future<void> disposeAudioRecorder() async {}
 }
 
 class ThrowingBackendClient extends BackendClient {
@@ -534,5 +555,21 @@ void main() {
     state.dispose();
 
     expect(mediaCaptureService.disposeCameraCalled, isTrue);
+  });
+
+  test('disposing ConversationState releases the microphone recorder and audio player', () {
+    final mediaCaptureService = FakeMediaCaptureService();
+    final audioPlaybackService = FakeAudioPlaybackService();
+    final state = ConversationState(
+      backendClient: FakeBackendClient(),
+      mediaCaptureService: mediaCaptureService,
+      audioPlaybackService: audioPlaybackService,
+      osTtsFallbackService: FakeOsTtsFallbackService(),
+    );
+
+    state.dispose();
+
+    expect(mediaCaptureService.disposeAudioRecorderCalled, isTrue);
+    expect(audioPlaybackService.disposeCalled, isTrue);
   });
 }

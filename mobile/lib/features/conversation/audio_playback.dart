@@ -6,6 +6,10 @@ import 'package:path_provider/path_provider.dart';
 
 abstract class AudioPlaybackService {
   Future<void> playBase64Audio(String audioBase64);
+
+  /// Releases the underlying audio player. Must be called on app teardown
+  /// so the player doesn't leak native playback resources.
+  Future<void> dispose();
 }
 
 /// Decodes base64 audio to a temp file and plays it through the device
@@ -30,4 +34,7 @@ class JustAudioPlaybackService implements AudioPlaybackService {
     await _player.setSpeed(0.9);
     await _player.play();
   }
+
+  @override
+  Future<void> dispose() => _player.dispose();
 }

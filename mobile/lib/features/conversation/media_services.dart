@@ -20,11 +20,18 @@ abstract class MediaCaptureService {
   /// be shown immediately. Fakes without a real camera should no-op.
   Future<void> ensureCameraReady();
 
-  /// Releases the camera hardware. Must be called when the capture service
-  /// is no longer needed (app teardown) so the camera isn't left locked,
-  /// draining battery and blocking other apps from using it. Fakes without
-  /// a real camera should no-op.
+  /// Releases the camera hardware. Called both on app teardown and when the
+  /// app is backgrounded (paused), so the camera isn't left locked, draining
+  /// battery and blocking other apps from using it. Fakes without a real
+  /// camera should no-op.
   Future<void> disposeCamera();
+
+  /// Releases the microphone recorder. Unlike [disposeCamera], this is only
+  /// safe to call on full app teardown -- the underlying recorder cannot be
+  /// reused after disposal, so calling this on a background/pause lifecycle
+  /// event would permanently break future recordings after resume. Fakes
+  /// without a real recorder should no-op.
+  Future<void> disposeAudioRecorder();
 }
 
 /// Resizes [rawBytes] so its longest edge is at most [maxDimension], then
@@ -87,6 +94,9 @@ class CameraMediaCaptureService implements MediaCaptureService {
     _cameraController = null;
     await controller?.dispose();
   }
+
+  @override
+  Future<void> disposeAudioRecorder() => _audioRecorder.dispose();
 
   @override
   Future<String> captureImageBase64() async {

@@ -34,11 +34,17 @@ class _FakeMediaCaptureService implements MediaCaptureService {
 
   @override
   Future<void> disposeCamera() async {}
+
+  @override
+  Future<void> disposeAudioRecorder() async {}
 }
 
 class _FakeAudioPlaybackService implements AudioPlaybackService {
   @override
   Future<void> playBase64Audio(String audioBase64) async {}
+
+  @override
+  Future<void> dispose() async {}
 }
 
 class _FakeOsTtsFallbackService implements OsTtsFallbackService {

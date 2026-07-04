@@ -292,10 +292,12 @@ class ConversationState extends ChangeNotifier {
   @override
   void dispose() {
     // ChangeNotifier.dispose() is synchronous, so this is fire-and-forget --
-    // the camera hardware still gets released, just not necessarily before
-    // this call returns. Without this, the camera controller added for the
-    // live preview background was never released at all.
+    // hardware still gets released, just not necessarily before this call
+    // returns. Without this, the camera controller, microphone recorder, and
+    // audio player were never released at all.
     _mediaCaptureService.disposeCamera();
+    _mediaCaptureService.disposeAudioRecorder();
+    _audioPlaybackService.dispose();
     super.dispose();
   }
 }
