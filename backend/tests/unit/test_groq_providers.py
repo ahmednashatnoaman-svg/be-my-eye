@@ -13,11 +13,14 @@ class FakeChatCompletions:
 
     def create(self, **kwargs):
         self.calls.append(kwargs)
-        text = kwargs["messages"][0]["content"]
-        if isinstance(text, list):
-            prompt_text = " ".join(part.get("text", "") for part in text if isinstance(part, dict))
-        else:
-            prompt_text = text
+        message_texts = []
+        for message in kwargs["messages"]:
+            content = message["content"]
+            if isinstance(content, list):
+                message_texts.append(" ".join(part.get("text", "") for part in content if isinstance(part, dict)))
+            else:
+                message_texts.append(content)
+        prompt_text = " ".join(message_texts)
 
         class Choice:
             class Message:
@@ -123,8 +126,14 @@ def test_groq_llm_provider_includes_history_and_context():
     result = provider.generate_response("Is it clean?", "a desk", "text", history)
 
     assert result == "assistant answer"
-    prompt = client.chat.completions.calls[0]["messages"][0]["content"]
-    assert "llm system" in prompt
+    messages = client.chat.completions.calls[0]["messages"]
+    assert messages[0] == {"role": "system", "content": "llm system"}
+    assert messages[1] == {"role": "user", "content": "What is this?"}
+    assert messages[2] == {"role": "assistant", "content": "A desk."}
+    assert messages[-1]["role"] == "user"
+    assert "Is it clean?" in messages[-1]["content"]
+    assert "a desk" in messages[-1]["content"]
+    assert "text" in messages[-1]["content"]
 
 
 def test_groq_asr_provider_submits_audio():

@@ -50,6 +50,10 @@ def _client_chat_content(client: object, model: str, prompt: str, image_bytes: b
         ]
 
     response = client.chat.completions.create(model=model, messages=messages)
+    return _extract_content(response)
+
+
+def _extract_content(response: object) -> str:
     content = response.choices[0].message.content
     return content.strip() if isinstance(content, str) else str(content).strip()
 
@@ -134,26 +138,24 @@ class GroqLLMProvider(LLMProvider):
         grounding_result: str | None = None,
     ) -> str:
         client = self.client or _load_groq_client()
-        history_lines = [
-            f"User: {turn.user_text}\nAssistant: {turn.assistant_text}"
-            for turn in history[-4:]
-        ]
-        prompt_parts = [
-            self.prompts.llm_system,
-            f"User message: {user_message}",
-        ]
-        if vision_summary:
-            prompt_parts.append(f"Scene summary: {vision_summary}")
-        if ocr_text:
-            prompt_parts.append(f"OCR text: {ocr_text}")
-        if grounding_result:
-            prompt_parts.append(f"Object location: {grounding_result}")
-        if history_lines:
-            prompt_parts.append("Recent history:\n" + "\n".join(history_lines))
-        prompt_parts.append(self.prompts.llm_answer_style)
 
-        prompt = "\n\n".join(prompt_parts)
-        return _client_chat_content(client, self.model, prompt, None)
+        messages: list[dict[str, str]] = [{"role": "system", "content": self.prompts.llm_system}]
+        for turn in history[-4:]:
+            messages.append({"role": "user", "content": turn.user_text})
+            messages.append({"role": "assistant", "content": turn.assistant_text})
+
+        current_turn_parts = [f"User message: {user_message}"]
+        if vision_summary:
+            current_turn_parts.append(f"Scene summary: {vision_summary}")
+        if ocr_text:
+            current_turn_parts.append(f"OCR text: {ocr_text}")
+        if grounding_result:
+            current_turn_parts.append(f"Object location: {grounding_result}")
+        current_turn_parts.append(self.prompts.llm_answer_style)
+        messages.append({"role": "user", "content": "\n\n".join(current_turn_parts)})
+
+        response = client.chat.completions.create(model=self.model, messages=messages)
+        return _extract_content(response)
 
 
 @dataclass
@@ -165,7 +167,9 @@ class GroqASRProvider(ASRProvider):
     def transcribe(self, audio_bytes: bytes) -> str:
         client = self.client or _load_groq_client()
         audio_file = BytesIO(audio_bytes)
-        audio_file.name = "audio.wav"  # type: ignore[attr-defined]
+        # Matches the mobile app's actual recording container (CameraMediaCaptureService
+        # records .m4a) -- Whisper's endpoint infers the container from this filename.
+        audio_file.name = "audio.m4a"  # type: ignore[attr-defined]
         transcription = client.audio.transcriptions.create(
             file=audio_file,
             model=self.model,
