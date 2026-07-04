@@ -29,13 +29,14 @@ The first version should prove the end-to-end user experience before any advance
 
 ### Not Done Yet
 
-1. Verify mobile playback and all new capture flows (Money Mode, barcode scanning) on a real physical device — everything so far has been verified via Simulator (no camera/mic) plus unit/widget tests.
-2. Full multi-turn conversation memory beyond the in-memory starter.
-3. Production hardening and demo polish.
+1. Verify mobile playback and all new capture flows (Money Mode, barcode scanning) on a real physical device — everything so far has been verified via Simulator (no camera/mic) plus unit/widget tests. Requires physical hardware access this project did not have during this round.
+2. Confirm the exact class-label strings `RoboflowCurrencyProvider` returns for a real Egyptian banknote. Live-verified against the real hosted API, but only with a non-currency test image (correctly empty prediction list) — no genuine banknote photo was available to test against.
+3. Full multi-turn conversation memory beyond the in-memory starter.
+4. Production hardening and demo polish.
 
 ### In Progress
 
-1. None currently — all planned work for this accessibility-expansion round is implemented, tested, and committed.
+1. None currently — all planned work for this accessibility-expansion round is implemented, tested, deployed, and committed. Backend (113 passed, 1 skipped) and mobile (28/28) test suites and CI are green on `main`; production backend confirmed healthy at `/health` with the rotated Groq key verified end-to-end.
 
 ## Guiding Rules
 
@@ -178,7 +179,7 @@ Dependencies:
 | API and orchestration | Done | `/conversation` works with deterministic fake providers. |
 | Provider adapters | Done | Groq-backed Vision, OCR, Grounding, LLM, ASR adapters, Egyptian TTS (Gradio Space, live-verified), Roboflow currency detection (live-verified with a real API key), and Open Food Facts product lookup are in code and wired into ConversationService; real mode is config-driven. Vision-task routing (scene/currency/color/product/food/people/environment/clothing/label) and grounding support both English and Arabic keywords, verified live. |
 | Mobile app | Done | Full Flutter app implemented (models, backend client, media capture/compression, audio playback + on-device TTS fallback, conversation state, accessible hold-to-ask screen, Money Mode, barcode scanning), Stitch-designed UI applied, 28/28 tests passing, verified running live on iOS Simulator. |
-| Tests | Done | Backend: 110 passed, 1 skipped. Mobile: 28/28 passed, `flutter analyze` clean. |
+| Tests | Done | Backend: 113 passed, 1 skipped. Mobile: 28/28 passed, `flutter analyze` clean. Both suites green in CI on `main`. |
 
 ## Component Dependencies
 
