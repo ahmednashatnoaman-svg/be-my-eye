@@ -271,6 +271,15 @@ time-critical, common use case (reading cash at a counter) without removing the 
 path, which stays useful for follow-up or combined questions ("how much is this and is
 it real").
 
+**Retraction (added after implementation review):** the original design spec's D-1/D-2
+promised Money Mode would be fully offline and instant, on the assumption of an
+on-device TFLite/CoreML model. D-017 documents why that was abandoned (no free
+pretrained weights exist) in favor of a hosted Roboflow API call. That pivot means
+Money Mode now requires network connectivity like every other feature in this app —
+the offline/instant guarantee from D-1/D-2 no longer holds and should not be treated as
+current. What Money Mode still delivers, and the actual reason for this decision: a
+faster, more accurate path than the general voice flow, not an offline one.
+
 ---
 
 ## D-019: TTS Failure Falls Back to the Device's Voice, Not to the Old Cloud Voice

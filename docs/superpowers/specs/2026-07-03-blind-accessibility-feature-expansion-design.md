@@ -82,7 +82,7 @@ Barcode / label flow (new):
 
 - Money: below-confidence-threshold result → "I'm not confident, please reposition the note" (never guesses a wrong denomination).
 - TTS: any cloud failure/timeout → immediate fallback to on-device OS voice, never silent.
-- Barcode: not found in Open Food Facts → "I don't recognize this product's barcode," falls back to VLM label reading.
+- Barcode: not found in Open Food Facts (including when Open Food Facts itself is unreachable) → "I couldn't find a product for this barcode." **Revised during implementation review:** falling back to VLM label reading on a not-found barcode was cut from scope — it would require the mobile client to also capture and send a photo alongside the barcode, a second capture step this feature doesn't otherwise need. The user can still get label info by asking a normal voice question routed to the `label` VisionTask.
 - Allergen/dietary/medicine outputs: always hedged language, explicitly never phrased as a medical or religious guarantee.
 - Offline entirely: Money Mode works fully; everything else (voice flow, barcode lookup, VLM tasks) requires connectivity and surfaces a clear "no connection" spoken message rather than hanging.
 
