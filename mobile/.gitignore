@@ -31,6 +31,11 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+# Trailing-slash /build/ above only matches a real directory -- it does not
+# match a symlink named "build" (used to redirect Flutter build output to an
+# external volume when the internal disk is low on space). This entry
+# matches "build" regardless of file type so the symlink itself is ignored.
+/build
 /coverage/
 
 # Symbolication related
