@@ -1,3 +1,4 @@
+import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 
 import 'audio_playback.dart';
@@ -36,10 +37,19 @@ class ConversationState extends ChangeNotifier {
   ConversationResponse? get lastResponse => _lastResponse;
   bool get isBusy => _isBusy;
   List<ConversationTurn> get history => List.unmodifiable(_history);
+  CameraController? get cameraPreviewController => _mediaCaptureService.cameraController;
 
   void loadDemoCapture() {
     _capturedImageBase64 = DemoCapture.imageBase64();
     _capturedAudioBase64 = DemoCapture.audioBase64();
+    notifyListeners();
+  }
+
+  /// Warms up the camera as soon as the screen loads (rather than waiting
+  /// for the first hold-to-ask gesture) so a live preview can be shown as
+  /// the screen's background right away.
+  Future<void> initializeCameraPreview() async {
+    await _mediaCaptureService.ensureCameraReady();
     notifyListeners();
   }
 

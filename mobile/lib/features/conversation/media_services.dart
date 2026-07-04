@@ -11,6 +11,14 @@ abstract class MediaCaptureService {
   Future<String> captureImageBase64();
   Future<void> startAudioRecording();
   Future<String> stopAudioRecording();
+
+  /// Non-null once a live camera preview is available. Fakes without a
+  /// real camera should return null.
+  CameraController? get cameraController;
+
+  /// Warms up the camera ahead of the first capture so a live preview can
+  /// be shown immediately. Fakes without a real camera should no-op.
+  Future<void> ensureCameraReady();
 }
 
 /// Resizes [rawBytes] so its longest edge is at most [maxDimension], then
@@ -57,6 +65,14 @@ class CameraMediaCaptureService implements MediaCaptureService {
     await controller.initialize();
     _cameraController = controller;
     return controller;
+  }
+
+  @override
+  CameraController? get cameraController => _cameraController;
+
+  @override
+  Future<void> ensureCameraReady() async {
+    await _ensureCamera();
   }
 
   @override

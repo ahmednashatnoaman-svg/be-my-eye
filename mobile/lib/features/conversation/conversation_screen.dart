@@ -1,3 +1,4 @@
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -31,6 +32,13 @@ class _ConversationScreenState extends State<ConversationScreen> with SingleTick
       vsync: this,
       duration: const Duration(seconds: 2),
     );
+    // Warm up the camera immediately so the live preview is visible as
+    // soon as the screen loads, not just after the first hold-to-ask
+    // gesture. Fire-and-forget and swallow failures here (e.g. permission
+    // not yet granted): the screen falls back to the solid background, and
+    // capture errors are still surfaced normally the first time the user
+    // actually tries to ask something.
+    context.read<ConversationState>().initializeCameraPreview().catchError((_) {});
   }
 
   @override
@@ -118,6 +126,11 @@ class _ConversationScreenState extends State<ConversationScreen> with SingleTick
             child: Stack(
               alignment: Alignment.center,
               children: [
+                if (state.cameraPreviewController?.value.isInitialized ?? false)
+                  _buildCameraBackground(state.cameraPreviewController!),
+                Positioned.fill(
+                  child: Container(color: Colors.black.withValues(alpha: 0.35)),
+                ),
                 if (_isListening) ..._buildPulseRings(),
                 Positioned(
                   top: 48,
@@ -169,6 +182,26 @@ class _ConversationScreenState extends State<ConversationScreen> with SingleTick
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Fills the screen with the live camera feed, cropping to cover rather
+  /// than letterboxing -- this is a visual aid only (e.g. for a sighted
+  /// companion helping frame a shot); the app's own voice output remains
+  /// the primary way a blind or low-vision user gets an answer.
+  Widget _buildCameraBackground(CameraController controller) {
+    final previewSize = controller.value.previewSize;
+    return Positioned.fill(
+      child: ClipRect(
+        child: FittedBox(
+          fit: BoxFit.cover,
+          child: SizedBox(
+            width: previewSize?.height ?? 1,
+            height: previewSize?.width ?? 1,
+            child: CameraPreview(controller),
           ),
         ),
       ),

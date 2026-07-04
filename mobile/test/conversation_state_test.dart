@@ -1,3 +1,4 @@
+import 'package:camera/camera.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:be_my_eye/features/conversation/audio_playback.dart';
@@ -78,6 +79,12 @@ class FakeMediaCaptureService implements MediaCaptureService {
     stopAudioRecordingCalled = true;
     return 'captured-audio';
   }
+
+  @override
+  CameraController? get cameraController => null;
+
+  @override
+  Future<void> ensureCameraReady() async {}
 }
 
 class FakeAudioPlaybackService implements AudioPlaybackService {
@@ -111,6 +118,12 @@ class ThrowingMediaCaptureService implements MediaCaptureService {
   Future<String> stopAudioRecording() async {
     throw StateError('Audio recording did not produce a file.');
   }
+
+  @override
+  CameraController? get cameraController => null;
+
+  @override
+  Future<void> ensureCameraReady() async {}
 }
 
 class CameraFailsButMicWorksMediaCaptureService implements MediaCaptureService {
@@ -126,6 +139,12 @@ class CameraFailsButMicWorksMediaCaptureService implements MediaCaptureService {
   Future<String> stopAudioRecording() async {
     return 'captured-audio';
   }
+
+  @override
+  CameraController? get cameraController => null;
+
+  @override
+  Future<void> ensureCameraReady() async {}
 }
 
 class ThrowingBackendClient extends BackendClient {

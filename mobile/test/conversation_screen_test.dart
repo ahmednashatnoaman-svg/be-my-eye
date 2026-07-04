@@ -1,3 +1,4 @@
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -26,6 +27,10 @@ class _FakeMediaCaptureService implements MediaCaptureService {
   Future<void> startAudioRecording() async {}
   @override
   Future<String> stopAudioRecording() async => 'audio';
+  @override
+  CameraController? get cameraController => null;
+  @override
+  Future<void> ensureCameraReady() async {}
 }
 
 class _FakeAudioPlaybackService implements AudioPlaybackService {
