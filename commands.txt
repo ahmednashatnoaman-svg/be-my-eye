@@ -1,0 +1,23 @@
+cd "D:\ITI\9 Months Training AI\Computer Vision\be-my-eye\mobile"
+
+flutter clean
+.\android\gradlew.bat --stop
+
+$apiKey = (Get-Content '..\.env' | Where-Object { $_ -match '^BE_MY_EYE_API_KEY=' } | Select-Object -First 1) -replace '^BE_MY_EYE_API_KEY=', ''
+
+flutter build apk --debug --dart-define=BACKEND_URL=https://backend-mu-azure-ghm6imsjg1.vercel.app --dart-define=BACKEND_API_KEY=$apiKey
+
+
+
+
+
+
+
+& "C:\Users\Admin\AppData\Local\Android\sdk\platform-tools\adb.exe" devices -l
+
+& "C:\Users\Admin\AppData\Local\Android\sdk\platform-tools\adb.exe" install -r build\app\outputs\flutter-apk\app-debug.apk
+
+& "C:\Users\Admin\AppData\Local\Android\sdk\platform-tools\adb.exe" shell pm grant com.example.be_my_eye android.permission.CAMERA
+& "C:\Users\Admin\AppData\Local\Android\sdk\platform-tools\adb.exe" shell pm grant com.example.be_my_eye android.permission.RECORD_AUDIO
+
+& "C:\Users\Admin\AppData\Local\Android\sdk\platform-tools\adb.exe" shell monkey -p com.example.be_my_eye -c android.intent.category.LAUNCHER 1
